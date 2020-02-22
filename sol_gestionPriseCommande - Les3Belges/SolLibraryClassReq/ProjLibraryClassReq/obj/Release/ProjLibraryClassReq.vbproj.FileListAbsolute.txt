@@ -1,0 +1,52 @@
+C:\Users\Brigitte\Desktop\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.dll
+C:\Users\Brigitte\Desktop\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.pdb
+C:\Users\Brigitte\Desktop\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.xml
+C:\Users\Brigitte\Desktop\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\Oracle.DataAccess.dll
+C:\Users\Brigitte\Desktop\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.Resources.resources
+C:\Users\Brigitte\Desktop\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.vbproj.GenerateResource.Cache
+C:\Users\Brigitte\Desktop\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.dll
+C:\Users\Brigitte\Desktop\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.xml
+C:\Users\Brigitte\Desktop\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.pdb
+C:\Users\Brigitte\Google Drive\Travail\2014-2015\SLAM2\TP\TP14\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.dll
+C:\Users\Brigitte\Google Drive\Travail\2014-2015\SLAM2\TP\TP14\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.pdb
+C:\Users\Brigitte\Google Drive\Travail\2014-2015\SLAM2\TP\TP14\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.xml
+C:\Users\Brigitte\Google Drive\Travail\2014-2015\SLAM2\TP\TP14\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\Oracle.DataAccess.dll
+C:\Users\Brigitte\Google Drive\Travail\2014-2015\SLAM2\TP\TP14\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.Resources.resources
+C:\Users\Brigitte\Google Drive\Travail\2014-2015\SLAM2\TP\TP14\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.vbproj.GenerateResource.Cache
+C:\Users\Brigitte\Google Drive\Travail\2014-2015\SLAM2\TP\TP14\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.dll
+C:\Users\Brigitte\Google Drive\Travail\2014-2015\SLAM2\TP\TP14\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.xml
+C:\Users\Brigitte\Google Drive\Travail\2014-2015\SLAM2\TP\TP14\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.pdb
+C:\Users\Brigitte\Google Drive\Travail\Programmation\Accés données\Test\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.dll
+C:\Users\Brigitte\Google Drive\Travail\Programmation\Accés données\Test\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.pdb
+C:\Users\Brigitte\Google Drive\Travail\Programmation\Accés données\Test\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.xml
+C:\Users\Brigitte\Google Drive\Travail\Programmation\Accés données\Test\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.vbprojResolveAssemblyReference.cache
+C:\Users\Brigitte\Google Drive\Travail\Programmation\Accés données\Test\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.Resources.resources
+C:\Users\Brigitte\Google Drive\Travail\Programmation\Accés données\Test\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.vbproj.GenerateResource.Cache
+C:\Users\Brigitte\Google Drive\Travail\Programmation\Accés données\Test\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.dll
+C:\Users\Brigitte\Google Drive\Travail\Programmation\Accés données\Test\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.xml
+C:\Users\Brigitte\Google Drive\Travail\Programmation\Accés données\Test\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.pdb
+G:\2017-2018\PPE\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.dll
+G:\2017-2018\PPE\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.pdb
+G:\2017-2018\PPE\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.xml
+G:\2017-2018\PPE\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.vbprojResolveAssemblyReference.cache
+G:\2017-2018\PPE\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.Resources.resources
+G:\2017-2018\PPE\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.vbproj.GenerateResource.Cache
+G:\2017-2018\PPE\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.dll
+G:\2017-2018\PPE\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.xml
+G:\2017-2018\PPE\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.pdb
+Z:\SLAM\PPE\PPE_L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.dll
+Z:\SLAM\PPE\PPE_L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.pdb
+Z:\SLAM\PPE\PPE_L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.xml
+Z:\SLAM\PPE\PPE_L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.vbprojResolveAssemblyReference.cache
+Z:\SLAM\PPE\PPE_L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.Resources.resources
+Z:\SLAM\PPE\PPE_L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.vbproj.GenerateResource.Cache
+Z:\SLAM\PPE\PPE_L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.dll
+Z:\SLAM\PPE\PPE_L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.xml
+Z:\SLAM\PPE\PPE_L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.pdb
+D:\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.dll
+D:\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\bin\Release\ProjLibraryClassReq.pdb
+D:\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.vbprojResolveAssemblyReference.cache
+D:\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.Resources.resources
+D:\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.vbproj.GenerateResource.Cache
+D:\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.dll
+D:\L3B\L3BV1\sol_gestionPriseCommande - Les3Belges\SolLibraryClassReq\ProjLibraryClassReq\obj\Release\ProjLibraryClassReq.pdb

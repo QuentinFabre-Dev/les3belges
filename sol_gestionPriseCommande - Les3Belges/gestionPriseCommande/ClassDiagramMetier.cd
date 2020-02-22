@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="les3belges.Client">
+    <Position X="0.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AiAAAQIAAAAIAAgAgIAAAAAJABACACAwABgAAAAAAAA=</HashCode>
+      <FileName>Client.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="les3belges.Commande">
+    <Position X="3.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>kEAAAhABAAAAAgAAAAAIAAAAAAACAAABkBAAAAABAQA=</HashCode>
+      <FileName>Commande.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="leClient" />
+    </ShowAsAssociation>
+    <ShowAsCollectionAssociation>
+      <Field Name="lesLignes" />
+    </ShowAsCollectionAssociation>
+  </Class>
+  <Class Name="les3belges.Produit">
+    <Position X="8.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>gACAAACAAQEgAQAAAACEgEAAAgAQABAAAgoAJCAAoAA=</HashCode>
+      <FileName>Produit.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="les3belges.LigneCommandeClient">
+    <Position X="6" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAIAAAAAAAAACAAAAAABABIAAQAAAAAAA=</HashCode>
+      <FileName>LigneCommandeClient.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="leProduit" />
+      <Field Name="laCommande" />
+    </ShowAsAssociation>
+  </Class>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>
