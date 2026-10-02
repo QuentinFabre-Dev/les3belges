@@ -89,7 +89,7 @@ Salle / Personne, justice, rumeurs, factions, conseil, années et mémoire colle
 
 ## Mise en ligne
 
-`.github/workflows/deploy.yml` publie le jeu sur GitHub Pages à chaque push sur `main`
+`.github/workflows/deploy.yml` publie le jeu sur GitHub Pages à chaque push sur `master` (ou `main`)
 (ou via « Run workflow »). Une seule fois : *Settings → Pages → Source : GitHub Actions*.
 Le jeu est alors servi à `https://<compte>.github.io/<dépôt>/`. Pour un autre hébergeur statique :
 `BASE_PATH=/chemin/ npm run build` puis publier `dist/`.

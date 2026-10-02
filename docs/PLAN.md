@@ -77,7 +77,7 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 - ✅ Modes de difficulté (§198) : Accessible / Standard / Difficile — fiabilité des données, franchise des responsables, vitesse des rumeurs, tolérance, mémoire sociale, vitesse des crises politiques, durée du mandat ; choisis comme « clause du mandat » à la signature du Pacte ou à la nouvelle partie
 - ✅ Son procédural (§70) : bourdonnement de la génératrice (plus fort quand on la regarde, ralentit puis silence en panne, redémarrage), ventilation, rumeur de foule selon les troubles, gouttes (audibles surtout dans le silence), alarmes, signaux d'interface, cloche du Nouvel An ; volume et coupure dans les paramètres
 - ✅ Reprise automatique de la dernière partie au chargement de la page
-- ✅ Déploiement : workflow GitHub Pages (tests + build sous `/<dépôt>/`), déclenché sur `main` ou à la main
+- ✅ Déploiement : workflow GitHub Pages (tests + build sous `/<dépôt>/`), déclenché sur `master` ou à la main
 - ✅ Équilibrage long : trêve de 8 jours après une concession à une faction ; la légitimité tient compte des résultats (silo nourri, abreuvé, éclairé). Banc 200 jours : joueur automatique naïf 5/6 mandats complets en Standard, 4/4 en Accessible, 0/4 en Difficile ; joueur passif ≈ 35 jours
 
 ---
