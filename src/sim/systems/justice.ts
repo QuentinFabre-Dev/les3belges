@@ -9,6 +9,7 @@ import { addTag, fullName, hasTag, holder, journal } from '../util';
 import { schedule } from './infrastructure';
 import { killCitizen, propagate } from './social';
 import { remember } from './years';
+import { shakeTrust } from './institutions';
 
 export const CELL_CAPACITY = 10;
 
@@ -147,6 +148,7 @@ export function applyVerdict(ctx: Ctx, defendantId: CitizenId | undefined, mode:
       imprison(ctx, k, sentence + 3, `Condamnation imposée par l’administration (${sentence + 3} j).`);
       k.forced = !guiltyByJudge;
       if (!guiltyByJudge) {
+        shakeTrust(ctx.w, 'judiciary', -8);
         remember(ctx, 'forced_verdict', 22, { title: `Le procès de ${fullName(ctx.w.citizens[k.defendantId])}`, responsibility: 'administration' });
         // Contre l'avis du juge : précédent, colère de l'entourage, juge humilié.
         judgeOffice.legitimacy = clamp(judgeOffice.legitimacy - 10);

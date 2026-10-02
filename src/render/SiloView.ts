@@ -1,6 +1,7 @@
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture, TextureSource, TilingSprite } from 'pixi.js';
 import type { FloorView, LockdownLevel, SectorId, Snapshot } from '../sim/types';
 import { Ambient } from './ambient';
+import { SPOTS, type RoomSpots } from './hotspots';
 import { NavigationGraph } from './navigation';
 import { CHAR_H, CHAR_W, FRAMES, FRAME_COUNT, atlasRow, buildCitizenAtlas, type Anim } from './sprites';
 import {
@@ -37,7 +38,7 @@ const ROOM_TEXTURES = ['court', 'council', 'school', 'bazaar', 'quarters', 'laun
 const WORK_FLOORS_24H = new Set<SectorId>(['water', 'energy', 'medical', 'security']);
 
 type Mode = 'idle' | 'walk' | 'act' | 'stairs';
-type Task = 'wander' | 'post' | 'repair' | 'protest' | 'clean';
+type Task = 'wander' | 'post' | 'repair' | 'protest' | 'clean' | 'queue' | 'eat' | 'home' | 'shop' | 'bed' | 'school' | 'gather' | 'seat' | 'patrol';
 
 interface Npc {
   sp: Sprite;
@@ -64,6 +65,20 @@ interface Npc {
   speed: number;
   fade: number;
   bubbleT: number;
+  child: boolean;
+  spot?: string; // point d'intérêt réservé
+  after?: { act: Anim | 'vanish'; t: number; facing?: 1 | -1; bubble?: boolean };
+  vanish: boolean;
+  eating: boolean;
+  yOff: number; // assis sur une couchette
+}
+
+interface Queue {
+  floor: number;
+  head: number;
+  dir: 1 | -1;
+  list: Npc[];
+  timer: number;
 }
 
 interface FloorGfx {
@@ -98,6 +113,8 @@ export class SiloView {
   private alertTex!: Texture;
   private sparks: { sp: Sprite; vx: number; vy: number; life: number }[] = [];
   private ambient = new Ambient();
+  private taken = new Set<string>();
+  private queues = new Map<string, Queue>();
   private screens: { floor: number; feed: TilingSprite; grime: Sprite; noise: Sprite; base: number }[] = [];
   private elevator = new Graphics();
   private elevatorY = 0;
@@ -301,7 +318,7 @@ export class SiloView {
       bubble.visible = false;
       this.npcLayer.addChild(sp);
       this.fxLayer.addChild(bubble);
-      this.npcs.push({ sp, bubble, active: false, floor: 0, x: 0, y: 0, facing: 1, sector: 'residential', row: 0, anim: 'idle', ft: 0, fi: 0, mode: 'idle', task: 'wander', timer: 0, tx: 0, act: 'idle', route: [], stair: null, leaving: false, authorized: false, speed: 16, fade: 1, bubbleT: 0 });
+      this.npcs.push({ sp, bubble, active: false, floor: 0, x: 0, y: 0, facing: 1, sector: 'residential', row: 0, anim: 'idle', ft: 0, fi: 0, mode: 'idle', task: 'wander', timer: 0, tx: 0, act: 'idle', route: [], stair: null, leaving: false, authorized: false, speed: 16, fade: 1, bubbleT: 0, child: false, vanish: false, eating: false, yOff: 0 });
     }
     for (let i = 0; i < 80; i++) {
       const sp = new Sprite(Texture.WHITE);
@@ -675,6 +692,7 @@ export class SiloView {
       this.reconcile(v0, v1);
     }
     const mul = s.speed === 0 ? 0.35 : 1 + Math.log2(Math.max(1, s.speed)) * 0.25;
+    this.updateQueues(dt * mul);
     for (const n of this.npcs) if (n.active) this.updateNpc(n, dt * mul, time);
     if (secondary) this.updateSparks(dt);
     this.ambient.updateParticles(dt, time);
@@ -725,7 +743,10 @@ export class SiloView {
     for (let i = Math.max(0, v0 - 1); i <= Math.min(this.floors.length - 1, v1 + 1); i++) {
       const f = s.floors[i];
       const a = f.activity;
-      const w = a.work + a.walk * 1.2 + a.eat + a.leisure * 0.6 + a.sleep * 0.03;
+      let w = a.work + a.walk * 1.2 + a.eat + a.leisure * 0.6 + a.sleep * 0.03;
+      if (this.gathering(f) && this.hasSpots(i, 'screen')) w *= 1.8;
+      // La nuit, les dortoirs et l'infirmerie montrent leurs dormeurs.
+      if (this.hasSpots(i, 'beds')) w += a.sleep * 0.12;
       weights[i] = w;
       total += w;
     }
@@ -767,9 +788,29 @@ export class SiloView {
           n.authorized = true;
         }
       }
+      // Adjoints en patrouille (deux silhouettes par patrouille)
+      const wantPatrol = Math.min(4, (f.patrol ?? 0) * 2);
+      const patrolling = list.filter((n) => n.task === 'patrol');
+      for (let k = patrolling.length; k < wantPatrol; k++) {
+        const n = this.spawn(i, 'security');
+        if (!n) break;
+        n.task = 'patrol';
+        n.authorized = true;
+        n.speed = 10 + Math.random() * 3;
+      }
+      for (const n of patrolling.slice(wantPatrol)) {
+        n.task = 'wander';
+        this.leave(n);
+      }
       if (list.length > target + 3) {
         // Surplus : ils prennent l'escalier
-        for (const n of list.slice(0, list.length - target)) if (n.task !== 'post') this.leave(n);
+        const night = s.hour >= 21 || s.hour < 6;
+        const doors = this.spotsOf(i, 'doors');
+        for (const n of list.slice(0, list.length - target)) {
+          if (n.task === 'post' || n.task === 'patrol' || n.task === 'home') continue;
+          if (night && doors.length) this.goHome(n, doors);
+          else this.leave(n);
+        }
       } else if (list.length < target) {
         for (let k = list.length; k < target; k++) {
           const sector = this.pickSector(f);
@@ -811,6 +852,23 @@ export class SiloView {
     n.facing = Math.random() < 0.5 ? 1 : -1;
     n.x = this.randomSpot(floor);
     n.y = floor * FLOOR_H + FEET_Y;
+    n.after = undefined;
+    n.vanish = false;
+    n.eating = false;
+    n.spot = undefined;
+    // Enfants : nombreux à l'école en journée, quelques-uns ailleurs (jamais la nuit).
+    const h = this.snap!.hour;
+    const schoolTime = h >= 6 && h < 16 && this.snap!.floors[floor].left === 'school';
+    n.child = sector === 'residential' && h >= 7 && h < 21 && Math.random() < (schoolTime ? 0.85 : 0.12);
+    if (n.child) n.speed += 4;
+    // Le matin, on sort de chez soi.
+    const doors = this.spotsOf(floor, 'doors');
+    if (doors.length && h >= 6 && h < 9 && Math.random() < 0.6) {
+      n.x = doors[Math.floor(Math.random() * doors.length)].x;
+      n.sp.visible = true;
+      n.sp.alpha = 0;
+      return n;
+    }
     // Parfois ils arrivent par l'escalier
     const lock = this.snap!.floors[floor].lockdown;
     if (Math.random() < 0.35 && lock === 'open') {
@@ -827,6 +885,10 @@ export class SiloView {
   }
 
   private release(n: Npc) {
+    this.unclaim(n);
+    n.after = undefined;
+    n.vanish = false;
+    n.eating = false;
     n.active = false;
     n.sp.visible = false;
     n.bubble.visible = false;
@@ -834,6 +896,11 @@ export class SiloView {
 
   private leave(n: Npc) {
     const s = this.snap!;
+    this.unclaim(n);
+    n.after = undefined;
+    n.eating = false;
+    n.yOff = 0;
+    if (n.task !== 'post' && n.task !== 'patrol') n.task = 'wander';
     const dir = Math.random() < 0.5 ? -1 : 1;
     const to = Math.min(this.floors.length - 1, Math.max(0, n.floor + dir));
     const path = this.nav.path(n.floor, to, n.authorized);
@@ -874,6 +941,42 @@ export class SiloView {
     const h = s.hour;
     const r = Math.random();
     n.bubble.visible = false;
+    // Arrivé·e à destination : on fait ce qu'on était venu faire.
+    if (n.after) {
+      const a = n.after;
+      n.after = undefined;
+      n.mode = 'act';
+      if (a.act === 'vanish') {
+        n.vanish = true;
+        n.act = 'idle';
+        n.timer = 99;
+        return;
+      }
+      n.act = a.act;
+      n.timer = a.t;
+      if (a.facing) n.facing = a.facing;
+      n.eating = n.task === 'eat';
+      n.yOff = n.task === 'bed' && a.act === 'sit' ? -17 : 0;
+      if (a.bubble && this.effSecondary !== 'min') this.showBubble(n, Math.random() < 0.4);
+      return;
+    }
+    if (n.task === 'queue') {
+      n.mode = 'act';
+      n.act = 'idle';
+      n.timer = 99;
+      return;
+    }
+    // Activité terminée : on libère sa place.
+    n.eating = false;
+    n.yOff = 0;
+    if (n.task !== 'post' && n.task !== 'patrol') {
+      this.unclaim(n);
+      if (n.task !== 'repair' && n.task !== 'protest') n.task = 'wander';
+    }
+    if (n.task === 'patrol') {
+      this.patrolStep(n);
+      return;
+    }
     if (n.task === 'post') {
       this.setAnim(n, 'idle');
       n.mode = 'act';
@@ -918,14 +1021,7 @@ export class SiloView {
       return;
     }
     const working = (h >= 7 && h < 12) || (h >= 13 && h < (s.policies.extendedHours ? 20 : 17));
-    const meal = h === 12 || (h >= 18 && h < 20);
-    const canteen = !!f.cafeteria || f.left === 'canteen' || f.right === 'canteen';
-    if (meal && canteen && r < 0.65) {
-      n.mode = 'act';
-      n.act = 'sit';
-      n.timer = 5 + Math.random() * 6;
-      return;
-    }
+    if (this.dailyLife(n, f, h, r)) return;
     if (working && n.sector === f.sector && r < 0.6) {
       n.mode = 'act';
       n.act = this.workAnim(n.sector);
@@ -963,6 +1059,276 @@ export class SiloView {
       n.act = 'idle';
       n.timer = 1 + Math.random() * 3;
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Vie quotidienne : points d'intérêt des salles
+
+  private wingsOf(fi: number) {
+    const f = this.snap!.floors[fi];
+    return [
+      { tex: f.left, x0: 0, mirrored: false },
+      { tex: f.right, x0: SHAFT_X + SHAFT_W, mirrored: f.left === f.right },
+    ];
+  }
+
+  private spotsOf(fi: number, kind: keyof RoomSpots): { x: number; key: string }[] {
+    if (!this.snap || !this.snap.floors[fi]) return [];
+    const out: { x: number; key: string }[] = [];
+    this.wingsOf(fi).forEach((w, wi) => {
+      const sp = SPOTS[w.tex]?.[kind];
+      if (sp === undefined || kind === 'queue') return;
+      const list = Array.isArray(sp) ? sp : [sp as number];
+      for (const lx of list) out.push({ x: w.mirrored ? w.x0 + ROOM_W - lx : w.x0 + lx, key: `${fi}:${wi}:${kind}:${lx}` });
+    });
+    return out;
+  }
+
+  private hasSpots(fi: number, kind: keyof RoomSpots) {
+    return this.spotsOf(fi, kind).length > 0;
+  }
+
+  /** Réserve le point libre le plus proche (parmi les trois plus proches, au hasard). */
+  private claim(n: Npc, kind: keyof RoomSpots): number | undefined {
+    const free = this.spotsOf(n.floor, kind).filter((p) => !this.taken.has(p.key));
+    if (!free.length) return undefined;
+    free.sort((a, b) => Math.abs(a.x - n.x) - Math.abs(b.x - n.x));
+    const p = free[Math.floor(Math.random() * Math.min(3, free.length))];
+    this.unclaim(n);
+    this.taken.add(p.key);
+    n.spot = p.key;
+    return p.x;
+  }
+
+  private unclaim(n: Npc) {
+    if (n.spot) this.taken.delete(n.spot);
+    n.spot = undefined;
+  }
+
+  private goDo(n: Npc, x: number, task: Task, after: NonNullable<Npc['after']>) {
+    n.task = task;
+    n.after = after;
+    if (Math.abs(n.x - x) > 1.5) {
+      n.mode = 'walk';
+      n.tx = x;
+    } else {
+      n.mode = 'idle';
+      n.timer = 0;
+    }
+  }
+
+  /** Rentrer chez soi : marcher jusqu'à une porte et disparaître derrière. */
+  private goHome(n: Npc, doors: { x: number }[]) {
+    const d = doors.reduce((a, b) => (Math.abs(b.x - n.x) < Math.abs(a.x - n.x) ? b : a));
+    this.unclaim(n);
+    n.leaving = true;
+    this.goDo(n, d.x + (Math.random() - 0.5) * 4, 'home', { act: 'vanish', t: 0 });
+  }
+
+  private isCanteen(f: FloorView) {
+    return !!f.cafeteria || f.left === 'canteen' || f.right === 'canteen';
+  }
+
+  /** Moments où l'on se rassemble devant l'écran : panne, commémoration, rumeur sur le dehors. */
+  private crisisCache?: { snap: Snapshot; value: boolean };
+  private gathering(_f: FloorView) {
+    const s = this.snap!;
+    if (this.crisisCache?.snap === s) return this.crisisCache.value;
+    const value =
+      s.energy.generatorState === 'failed' ||
+      s.decisions.some((d) => d.defId === 'commemoration' || d.defId === 'founding_day' || d.defId === 'archive_decoded' || d.defId === 'truth_leak') ||
+      s.rumors.some((r) => r.templateId === 'dehors_bouge' && r.status === 'spreading');
+    this.crisisCache = { snap: s, value };
+    return value;
+  }
+
+  private queueList(fi: number) {
+    const out: Queue[] = [];
+    this.wingsOf(fi).forEach((w, wi) => {
+      const q = SPOTS[w.tex]?.queue;
+      if (!q) return;
+      const key = `${fi}:${wi}`;
+      let entry = this.queues.get(key);
+      if (!entry) {
+        entry = { floor: fi, head: w.mirrored ? w.x0 + ROOM_W - q.head : w.x0 + q.head, dir: (w.mirrored ? -q.dir : q.dir) as 1 | -1, list: [], timer: 2 };
+        this.queues.set(key, entry);
+      }
+      out.push(entry);
+    });
+    return out;
+  }
+
+  private joinQueue(n: Npc) {
+    const qs = this.queueList(n.floor).filter((q) => q.list.length < 7);
+    if (!qs.length) return false;
+    const q = qs.reduce((a, b) => (b.list.length < a.list.length ? b : a));
+    this.unclaim(n);
+    n.task = 'queue';
+    n.after = undefined;
+    q.list.push(n);
+    n.mode = 'walk';
+    n.tx = q.head - q.dir * (q.list.length - 1) * 7;
+    return true;
+  }
+
+  /** Files d'attente aux comptoirs : on avance d'un cran à chaque plateau servi. */
+  private updateQueues(dt: number) {
+    if (!this.snap) return;
+    const h = this.snap.hour;
+    const meal = h === 7 || (h >= 11 && h < 14) || (h >= 18 && h < 21);
+    for (const q of this.queues.values()) {
+      q.list = q.list.filter((n) => n.active && n.task === 'queue' && n.floor === q.floor && n.mode !== 'stairs');
+      if (!q.list.length) continue;
+      if (!meal) {
+        for (const n of q.list) {
+          n.task = 'wander';
+          n.mode = 'idle';
+          n.timer = Math.random();
+        }
+        q.list = [];
+        continue;
+      }
+      q.timer -= dt;
+      const head = q.list[0];
+      if (q.timer <= 0 && Math.abs(head.x - q.head) < 2) {
+        q.list.shift();
+        q.timer = 2.5 + Math.random() * 2;
+        head.task = 'eat';
+        const seat = this.claim(head, 'seats');
+        if (seat !== undefined) this.goDo(head, seat, 'eat', { act: 'sit', t: 9 + Math.random() * 7 });
+        else {
+          head.task = 'wander';
+          head.mode = 'walk';
+          head.tx = this.randomSpot(head.floor);
+        }
+      }
+      q.list.forEach((n, i) => {
+        const slot = q.head - q.dir * i * 7;
+        if (Math.abs(n.x - slot) > 1.5) {
+          if (n.mode !== 'walk' || Math.abs(n.tx - slot) > 1) {
+            n.mode = 'walk';
+            n.tx = slot;
+          }
+        } else if (n.mode !== 'act') {
+          n.mode = 'act';
+          n.act = 'idle';
+          n.timer = 99;
+          n.facing = q.dir;
+        }
+      });
+    }
+  }
+
+  /** Adjoints en patrouille : ils arpentent l'étage, s'arrêtent, observent. */
+  private patrolStep(n: Npc) {
+    if (Math.random() < 0.55) {
+      n.mode = 'walk';
+      n.tx = this.randomSpot(n.floor);
+    } else {
+      n.mode = 'act';
+      n.act = Math.random() < 0.25 ? 'talk' : 'idle';
+      n.timer = 1.5 + Math.random() * 2.5;
+    }
+  }
+
+  /** Journée type selon l'heure et la salle : repas, école, marché, sommeil, soins, assemblée. */
+  private dailyLife(n: Npc, f: FloorView, h: number, r: number): boolean {
+    const fi = n.floor;
+    const night = h >= 21 || h < 6;
+    const meal = h === 7 || (h >= 11 && h < 14) || (h >= 18 && h < 21);
+    const screens = this.spotsOf(fi, 'screen');
+    if (screens.length && this.gathering(f) && r < 0.7) {
+      const sc = screens[Math.floor(Math.random() * screens.length)];
+      const x = sc.x + (Math.random() - 0.5) * 90;
+      this.goDo(n, x, 'gather', { act: Math.random() < 0.5 ? 'talk' : 'idle', t: 4 + Math.random() * 5, facing: x < sc.x ? 1 : -1, bubble: Math.random() < 0.35 });
+      return true;
+    }
+    if (meal && this.isCanteen(f) && !n.child) {
+      if (r < 0.45 && this.joinQueue(n)) return true;
+      if (r < 0.8) {
+        const seat = this.claim(n, 'seats');
+        if (seat !== undefined) {
+          this.goDo(n, seat, 'eat', { act: 'sit', t: 8 + Math.random() * 6 });
+          return true;
+        }
+      }
+    }
+    if (night) {
+      if (r < 0.9) {
+        const bed = this.claim(n, 'beds');
+        if (bed !== undefined) {
+          this.goDo(n, bed, 'bed', { act: 'sit', t: 15 + Math.random() * 15 });
+          return true;
+        }
+      }
+      const doors = this.spotsOf(fi, 'doors');
+      if (doors.length && r < 0.4) {
+        this.goHome(n, doors);
+        return true;
+      }
+    }
+    // Infirmerie : des patients dans les lits, le personnel passe de lit en lit.
+    if (this.hasSpots(fi, 'beds') && f.sector === 'medical') {
+      if (n.sector !== 'medical' && r < 0.55) {
+        const bed = this.claim(n, 'beds');
+        if (bed !== undefined) {
+          this.goDo(n, bed, 'bed', { act: 'sit', t: 10 + Math.random() * 12 });
+          return true;
+        }
+      } else if (n.sector === 'medical' && r < 0.5) {
+        const beds = this.spotsOf(fi, 'beds');
+        const b = beds[Math.floor(Math.random() * beds.length)];
+        this.goDo(n, b.x + (Math.random() < 0.5 ? -8 : 8), 'seat', { act: 'work', t: 3 + Math.random() * 3, facing: undefined });
+        return true;
+      }
+    }
+    // École : les enfants aux pupitres, un·e adulte au tableau.
+    if (h >= 8 && h < 16 && this.hasSpots(fi, 'desks') && f.left === 'school') {
+      if (n.child && r < 0.85) {
+        const desk = this.claim(n, 'desks');
+        if (desk !== undefined) {
+          this.goDo(n, desk, 'school', { act: 'sit', t: 10 + Math.random() * 10 });
+          return true;
+        }
+      } else if (!n.child && r < 0.5) {
+        const lec = this.claim(n, 'lectern');
+        if (lec !== undefined) {
+          this.goDo(n, lec, 'school', { act: 'talk', t: 6 + Math.random() * 6 });
+          return true;
+        }
+        // Les adultes laissent la place aux élèves.
+        if (r < 0.35 && !n.leaving) {
+          this.leave(n);
+          return true;
+        }
+      }
+    }
+    // Bazar : on flâne devant les étals, surtout le soir.
+    const stalls = this.spotsOf(fi, 'stalls');
+    if (stalls.length && !night && r < (h >= 17 && h < 21 ? 0.75 : 0.35)) {
+      const st = stalls[Math.floor(Math.random() * stalls.length)];
+      this.goDo(n, st.x + (Math.random() - 0.5) * 14, 'shop', { act: Math.random() < 0.4 ? 'talk' : 'idle', t: 4 + Math.random() * 4, facing: Math.random() < 0.5 ? 1 : -1, bubble: Math.random() < 0.2 });
+      return true;
+    }
+    // Salles d'assemblée (conseil, tribunal), canapés des coursives.
+    if (!this.isCanteen(f) && this.hasSpots(fi, 'seats')) {
+      const assembly = f.left === 'council' || f.right === 'council' || f.left === 'court' || f.right === 'court';
+      if ((assembly && h >= 8 && h < 18 && r < 0.45) || (!assembly && r < 0.12)) {
+        const seat = this.claim(n, 'seats');
+        if (seat !== undefined) {
+          this.goDo(n, seat, 'seat', { act: 'sit', t: 6 + Math.random() * 8 });
+          return true;
+        }
+      }
+      if (assembly && r > 0.92) {
+        const lec = this.claim(n, 'lectern');
+        if (lec !== undefined) {
+          this.goDo(n, lec, 'seat', { act: 'talk', t: 5 + Math.random() * 5 });
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private workAnim(sector: SectorId): Anim {
@@ -1016,7 +1382,13 @@ export class SiloView {
 
   private updateNpc(n: Npc, dt: number, time: number) {
     const s = this.snap!;
-    n.fade = Math.min(1, n.fade + dt * 2.5);
+    if (n.vanish) {
+      n.fade -= dt * 2.5;
+      if (n.fade <= 0) {
+        this.release(n);
+        return;
+      }
+    } else n.fade = Math.min(1, n.fade + dt * 2.5);
     if (n.mode === 'stairs' && n.stair) {
       n.stair.t += dt / 3.2;
       const p = this.stairPoint(n.stair.from, n.stair.to, Math.min(1, n.stair.t));
@@ -1084,7 +1456,11 @@ export class SiloView {
     n.fi = Math.floor(n.ft) % fr.length;
     n.sp.texture = this.frames[n.row][fr[n.fi]];
     n.sp.position.set(Math.round(n.x), Math.round(n.y));
-    n.sp.scale.x = n.facing;
+    // On mange : petit mouvement de cuillère.
+    if (n.eating && n.mode === 'act' && n.act === 'sit') n.sp.y -= Math.floor(time * 2.2 + n.x * 0.37) % 2;
+    if (n.yOff && n.mode === 'act') n.sp.y += n.yOff;
+    const k = n.child ? 0.72 : 1;
+    n.sp.scale.set(n.facing * k, k);
     // Ombre & lumière : les PNJ s'assombrissent avec leur étage
     const f = s.floors[n.floor];
     const light = 1 - Math.min(0.75, (1 - f.power) * 0.6);
@@ -1093,7 +1469,7 @@ export class SiloView {
     n.sp.alpha = n.fade;
     if (n.bubble.visible) {
       n.bubbleT -= dt;
-      n.bubble.position.set(Math.round(n.x + 3), Math.round(n.y - CHAR_H - 2 + Math.sin(time * 4)));
+      n.bubble.position.set(Math.round(n.x + 3), Math.round(n.y - CHAR_H * k - 2 + Math.sin(time * 4)));
       if (n.bubbleT <= 0) n.bubble.visible = false;
     }
   }

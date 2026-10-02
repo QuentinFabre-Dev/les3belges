@@ -143,6 +143,9 @@ export interface FloorState {
   trust: number;
   residents: number;
   workers: number;
+  patrol?: number; // patrouilles d'adjoints affectées
+  patrolSince?: number;
+  patrolWarned?: boolean;
 }
 
 export type LockdownLevel = 'open' | 'controlled' | 'full';
@@ -435,9 +438,12 @@ export interface WorldState {
   yearStart: { population: number; deaths: number; births: number; arrests: number; tick: number };
   freeMode?: boolean;
   blackoutDays?: number;
+  institutions: Record<InstitutionId, { trust: number; history: number[] }>;
 }
 
 export type Difficulty = 'accessible' | 'standard' | 'hard';
+
+export type InstitutionId = 'mayor' | 'judiciary' | 'security' | 'mechanics' | 'medical' | 'it';
 
 export type ChronicleKind = 'mine_accident' | 'blackout' | 'famine' | 'thirst' | 'epidemic' | 'riot' | 'insurrection' | 'lockdown' | 'forced_verdict' | 'death_key' | 'truth';
 
@@ -574,6 +580,7 @@ export type GameCommand =
   | { type: 'MAKE_DECISION'; uid: number; choiceId: string }
   | { type: 'SET_POLICY'; key: keyof Policies; value: unknown }
   | { type: 'SET_LOCKDOWN'; floor: FloorId; level: LockdownLevel }
+  | { type: 'SET_PATROL'; floor: FloorId; units: number }
   | { type: 'SET_STAFFING'; sector: SectorId; delta: number }
   | { type: 'APPOINT'; officeId: OfficeId; citizenId: CitizenId }
   | { type: 'START_ELECTION'; officeId: OfficeId }
@@ -592,7 +599,7 @@ export type GameCommand =
   | { type: 'CONVENE_COUNCIL' }
   | { type: 'COUNCIL_CHOICE'; proposalId: string }
   | { type: 'SPAWN_EVENT'; eventId: string; floor?: FloorId; assetId?: AssetId }
-  | { type: 'DEBUG'; action: 'fail' | 'resources' | 'unrest' | 'accident' | 'faction' | 'rumor' | 'arrest' | 'year' | 'victory'; target?: string }
+  | { type: 'DEBUG'; action: 'fail' | 'resources' | 'unrest' | 'accident' | 'faction' | 'rumor' | 'arrest' | 'year' | 'victory' | 'hour'; target?: string }
   | { type: 'SAVE' }
   | { type: 'LOAD' };
 
@@ -651,6 +658,7 @@ export interface FloorView {
   activity: { work: number; walk: number; eat: number; sleep: number; leisure: number };
   incidentCount: number;
   repairing: boolean;
+  patrol: number;
   rumor: number; // portée maximale d'une rumeur active (0-1)
   factionSymbol?: string; // tags d'une faction (visibles même non identifiée)
   managerName?: string;
@@ -687,6 +695,7 @@ export interface OfficeView {
 
 export interface DecisionView {
   uid: number;
+  defId: string;
   title: string;
   description: string;
   severity: Severity;
@@ -798,6 +807,18 @@ export interface Snapshot {
   signals: { floor: FloorId; text: string }[];
   council?: CouncilView;
   councilReadyInHours: number;
+  patrols: { capacity: number; used: number };
+  institutions: { id: InstitutionId; label: string; trust: number; trend: number; causes: string[] }[];
+  forecast: ForecastItem[];
+}
+
+export interface ForecastItem {
+  id: string;
+  text: string;
+  inHours: number;
+  severity: Severity;
+  floor?: FloorId;
+  view?: string;
 }
 
 export interface CaseView {
@@ -818,6 +839,7 @@ export interface CaseView {
 
 export interface RumorView {
   id: number;
+  templateId: string;
   text: string;
   truth: RumorTruth | 'unknown';
   status: Rumor['status'];

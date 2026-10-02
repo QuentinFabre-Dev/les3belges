@@ -1512,3 +1512,27 @@ p {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------------------------------------------------------------- Étape 5 */
+.inst-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.inst {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.patrol-row {
+  align-items: center;
+  margin: 4px 0;
+}
+.ok {
+  color: var(--ok);
+}

@@ -41,6 +41,9 @@ src/
       factions.ts      Factions : émergence, recrutement, stades, revendications
       council.ts       Conseil du silo : prises de position, alliances
       years.ts         Calendrier, démographie, mémoire collective, bilans annuels, fins
+      patrols.ts       Patrouilles d'adjoints par étage
+      institutions.ts  Confiance par institution (mairie, justice, sécurité, mécanique, médical, DSI)
+      forecast.ts      Anticipation : ce qui va arriver si rien ne change
       events.ts        Moteur data-driven : conditions, effets génériques, effets différés,
                        promesses, élections, nominations, blocus
     data/
@@ -54,6 +57,7 @@ src/
     navigation.ts      Graphe des paliers + A* (le blocus bloque des arêtes)
     textures.ts        Cage d'escalier, dalles, murs, roche
     ambient.ts         Ambiance des salles : lampes, voyants, plantes, vapeur, fumée, gouttes
+    hotspots.ts        Points d'intérêt des salles (bancs, comptoirs, portes, lits, étals…)
   audio/sound.ts       Son procédural Web Audio (génératrice, ventilation, foule, alarmes)
   ui/                  React + Zustand (HUD, décisions, panneaux)
   game/store.ts        Pont Worker ⇄ UI (commandes, requêtes, snapshot)
@@ -83,9 +87,10 @@ Les salles, portraits et la surface ont été générés via le MCP Monid
 
 ## Feuille de route
 
-Les quatre étapes prévues sont livrées : silo de 30 étages (3 000 habitants), vues Silo / Étage /
+Les cinq étapes prévues sont livrées : silo de 30 étages (3 000 habitants), vues Silo / Étage /
 Salle / Personne, justice, rumeurs, factions, conseil, années et mémoire collective, 8 fins,
-3 difficultés, son procédural. Détail et couverture du document de conception : `docs/PLAN.md`.
+3 difficultés, son procédural, vie quotidienne visible, patrouilles, confiance par institution,
+anticipation. Détail et couverture du document de conception : `docs/PLAN.md`.
 
 ## Mise en ligne
 

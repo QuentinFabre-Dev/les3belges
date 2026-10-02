@@ -80,6 +80,21 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 - ✅ Déploiement : workflow GitHub Pages (tests + build sous `/<dépôt>/`), déclenché sur `master` ou à la main
 - ✅ Équilibrage long : trêve de 8 jours après une concession à une faction ; la légitimité tient compte des résultats (silo nourri, abreuvé, éclairé). Banc 200 jours : joueur automatique naïf 5/6 mandats complets en Standard, 4/4 en Accessible, 0/4 en Difficile ; joueur passif ≈ 35 jours
 
+### Étape 5 — La vie sous les yeux & institutions (livrée)
+- ✅ Vie quotidienne visible : points d'intérêt mesurés dans chaque salle (`src/render/hotspots.ts`) ; files d'attente aux comptoirs et repas à table (petit mouvement de cuillère), enfants (sprites réduits) aux pupitres de l'école avec un·e adulte au tableau, flânerie devant les étals du bazar le soir, retour chez soi par les portes la nuit, couchettes des dortoirs et lits de l'infirmerie occupés, assemblées au conseil et au tribunal, rassemblement devant l'écran des réfectoires lors d'une panne, d'une commémoration ou d'une rumeur sur le dehors (§7)
+- ✅ Adjoints du shérif affectés aux étages (§43–44 bis) : patrouilles limitées par les effectifs de sécurité (la moitié patrouille), effets sur les débordements, les rumeurs, les vols aux fournitures et la détection des factions ; peur et rancœur des habitants surveillés (« occupation » après trois jours) ; adjoints visibles qui arpentent l'étage
+- ✅ Confiance par institution (§100–111) : mairie, judiciaire, sécurité, mécanique, médical, DSI ; cibles calculées à partir des actes (promesses, jugements imposés, pannes, malades, écrans…), chocs ponctuels, tendance et causes affichées ; effets en retour (justice discréditée → arrestations perçues comme injustes, mécanique discréditée → peur, médical discrédité → moral, mairie → légitimité et crédibilité des démentis, sécurité → efficacité des patrouilles)
+- ✅ Alertes regroupées (« Pannes ×3 ») et panneau « À venir » (§34–36) : épuisement des stocks, pannes probables, procès, promesses, élection, factions qui se radicalisent, blocus qui s'éternisent, Jour de la Fondation et fin de mandat
+- ✅ Outils de test : saut à une heure donnée (debug), vue et store exposés en `?debug`
+
+### Étape 6 — Pistes suivantes (à faire)
+- ⬜ Lois du silo modifiables et matrice des pouvoirs (§146–199, §197) : mode d'élection, durée des mandats, pouvoirs du maire/shérif/juge, autonomie des étages, votées au conseil
+- ⬜ Blocus : réouverture par étapes et exceptions (médical, mécanique, ravitaillement) (§80–99)
+- ⬜ Groupes sociaux transverses (familles élargies, congrégations, anciens) (§16)
+- ⬜ Adéquation fine compétence/poste et formation (§43)
+- ⬜ Stocks physiques par étage et transferts (§48–52 bis)
+- ⬜ Mesure de performance sur une vraie machine (§32)
+
 ---
 
 ## Couverture du document de conception
@@ -91,7 +106,7 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 | 4 | Structure du silo par étages | ✅ | 30 étages dont 3 réfectoires (-01, -12, -23) |
 | 5 | Vues Silo / Étage / Salle / Personne | ✅ | Silo, fiche étage, vue Salle, vue Personne (suivi + journée) |
 | 6 | Population simulée vs PNJ visibles | ✅ | 75–400 PNJ selon réglage |
-| 7 | Animations et petits événements visuels | 🟡 | PNJ (marche, escaliers, travail, porter, réparer, assis, discuter, bulles) + ambiance des salles : halos de lampes, voyants, plantes qui poussent et ondulent, vapeur, fumée, poussière, gouttes, cadrans ; manque manger/dormir visibles, files |
+| 7 | Animations et petits événements visuels | ✅ | PNJ (marche, escaliers, travail, porter, réparer, assis, discuter, bulles) + ambiance des salles : halos de lampes, voyants, plantes qui poussent et ondulent, vapeur, fumée, poussière, gouttes, cadrans ; repas, files, sommeil, école, marché, rassemblements |
 | 8 | Routines quotidiennes | ✅ | Présence par heure et par étage ; école, repas au réfectoire, bazar le soir |
 | 9 | Temps et vitesses | ✅ | |
 | 10–11 | Ressources, production/consommation, dépendances | ✅ | eau, nourriture, énergie, fer, pièces, médicaments |
@@ -108,7 +123,7 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 | 24–26 | Réglages graphiques, dégradation adaptative, LOD | 🟡 | Densité, effets, éclairage, adaptatif ; LOD par distance non fait |
 | 27 | Pooling | ✅ | 400 PNJ réutilisés |
 | 28 | Sauvegarde IndexedDB | ✅ | Auto chaque jour ; cloud (phase 2) non fait |
-| 34–36 | UX : hiérarchie des alertes, regroupement, anticipation | 🟡 | Sévérités + risque estimé ; regroupement d'alertes à faire |
+| 34–36 | UX : hiérarchie des alertes, regroupement, anticipation | ✅ | Sévérités, regroupement par nature, panneau « À venir » |
 | 37 | Crises explicables | ✅ | Chaîne causale par incident |
 | 41–42 | Habitants clés, fonctions institutionnelles | ✅ | |
 | 43 | Compétences, traits, adéquation au poste | 🟡 | Compétence/leadership/intégrité/traits ; adéquation fine à faire |
@@ -116,7 +131,7 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 | 45 | Mort/disparition d'un habitant clé | ✅ | Perte d'expertise, vacance, impact social, mémoire |
 | 46–48 | Familles, communautés, graphe social, propagation | ✅ | |
 | 49 | Légitimité et perception | 🟡 | Légitimité perçue des arrestations/morts ; vérité vs croyance à approfondir (rumeurs) |
-| 43–44 bis | Shérif et adjoints | 🟡 | Adjoints = habitants ; affectation par étage à faire |
+| 43–44 bis | Shérif et adjoints | ✅ | Adjoints = habitants, patrouilles par étage, visibles |
 | 45 bis | Responsables d'étage | ✅ | Fiabilité des rapports |
 | 47 bis | Secteur mécanique | ✅ | |
 | 48–52 bis | Fournitures, stocks, vols, écarts d'inventaire | 🟡 | Stock global ; stocks physiques par étage et transactions à faire |
@@ -124,7 +139,7 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 | 65 | Nettoyage et salubrité | ✅ | |
 | 66–75 | Génératrice, énergie de secours, peur, communication de crise | ✅ | |
 | 80–99 | Blocus d'étage | 🟡 | 3 niveaux, navigation, coûts, contrebande ; réouverture par étapes et exceptions fines à faire |
-| 100–111 | Variables psychologiques, confiance par institution, leaders informels | 🟡 | Confiance admin + sécurité ; confiance par institution à étendre |
+| 100–111 | Variables psychologiques, confiance par institution, leaders informels | ✅ | Confiance par habitant + par institution (6), leaders informels |
 | 112–115 | Rumeurs, communication officielle | ✅ | Propagation par étages et réfectoires, vérité cachée, démentis |
 | 116–122 | Mémoire collective/individuelle, griefs, promesses | ✅ | Chronique des crises qui se ravivent, commémorations, mémoires individuelles, promesses ; griefs typés par faction |
 | 123–129 | Protestation → insurrection, réponses | ✅ | Paliers 0–5 + factions organisées, signaux précurseurs |
@@ -140,6 +155,7 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 
 ## Journal des livraisons
 
+- **Étape 5** — vie quotidienne visible, patrouilles d'adjoints, confiance par institution, alertes regroupées et « À venir » (aucune image générée).
 - **Étape 4** — années, démographie, mémoire collective, bilans, 8 fins, difficulté, son procédural, déploiement GitHub Pages (aucune image générée).
 - **Ambiance** — animation du décor des salles sans nouvelle image (analyse des pixels + émetteurs placés à la main).
 - **Étape 3** — 30 étages / 3 000 habitants, 3 réfectoires, vue Salle, vue Personne, 40 nouveaux événements (5 images générées : école, bazar, quartiers, blanchisserie, serre ≈ 0,15 $).

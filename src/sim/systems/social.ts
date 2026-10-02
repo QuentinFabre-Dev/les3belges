@@ -8,6 +8,8 @@ import { schedule } from './infrastructure';
 import { openCase } from './justice';
 import { factionPressure } from './factions';
 import { remember } from './years';
+import { patrolOf } from './patrols';
+import { trustIn } from './institutions';
 import { diff } from '../data/difficulty';
 
 const SENSITIVITY: Partial<Record<Trait, number>> = { solidary: 1.35, altruistic: 1.2, impulsive: 1.25, calm: 0.75, individualistic: 0.7, pragmatic: 0.9 };
@@ -18,6 +20,9 @@ const sensitivity = (c: Citizen) => c.traits.reduce((m, t) => m * (SENSITIVITY[t
 
 export function populationHour(ctx: Ctx) {
   const tolerance = diff(ctx.w).tolerance;
+  // On ne croit plus la mécanique : chaque bruit de machine inquiète. On évite une infirmerie discréditée.
+  const mechDoubt = Math.max(0, 40 - trustIn(ctx.w, 'mechanics')) / 6;
+  const medDoubt = Math.max(0, 40 - trustIn(ctx.w, 'medical')) / 6;
   const { w } = ctx;
   const r = w.resources;
   const hungry = r.food.real <= 1;
@@ -48,7 +53,7 @@ export function populationHour(ctx: Ctx) {
     c.fatigue += (fatigueTarget + c.fear * 0.15 - c.fatigue) * 0.04;
 
     // Moral
-    let moraleTarget = 62 + rationMood;
+    let moraleTarget = 62 + rationMood - medDoubt;
     if (home.cleanliness < 40) moraleTarget -= (40 - home.cleanliness) * 0.35;
     if (home.power < 0.6) moraleTarget -= 10;
     if (home.water < 0.5) moraleTarget -= 12;
@@ -64,7 +69,8 @@ export function populationHour(ctx: Ctx) {
     c.morale += (moraleTarget - c.morale) * 0.05;
 
     // Peur : danger immédiat, retombe lentement
-    const fearTarget = fearBase + (home.unrest >= 4 ? 20 : 0) + (home.cleanliness < 22 ? 12 : 0);
+    const patrols = patrolOf(home);
+    const fearTarget = fearBase + (home.unrest >= 4 ? 20 : 0) + (home.cleanliness < 22 ? 12 : 0) + patrols * 5 + mechDoubt;
     c.fear += (fearTarget - c.fear) * (c.fear > fearTarget ? 0.02 : 0.12) * (c.traits.includes('calm') ? 0.7 : 1);
 
     // Colère -> retombe vers une fraction de la rancœur
@@ -76,6 +82,8 @@ export function populationHour(ctx: Ctx) {
     if (w.policies.rations === 'reduced') grievanceGain += 0.06;
     if (home.cleanliness < 40) grievanceGain += 0.04;
     if (home.lockdown === 'full') grievanceGain += 0.12;
+    // Être surveillé chez soi : rassurant pour certains, humiliant pour d'autres.
+    if (patrols) grievanceGain += patrols * 0.012 * (c.traits.includes('skeptical') || c.traits.includes('individualistic') ? 1.8 : 1);
     // Mécontentement de fond : la rancœur ne retombe que jusqu'à ce niveau, propre à chaque vie.
     let baseline = 8;
     if (c.sector === 'mines') baseline += 10 * w.policies.mineQuota;
@@ -248,7 +256,7 @@ export function socialHour(ctx: Ctx) {
     const leader = list.filter((c) => c.flags.includes('informal_leader') || c.flags.includes('agitator')).reduce((m, c) => Math.max(m, c.influence), 0);
     const cohesion = w.sectors[f.sector]?.cohesion ?? 0.5;
     const security = w.floors.find((x) => x.id === 'security')!;
-    const patrol = f.lockdown === 'full' ? 14 : f.lockdown === 'controlled' ? 7 : 0;
+    const patrol = (f.lockdown === 'full' ? 14 : f.lockdown === 'controlled' ? 7 : 0) + patrolOf(f) * 5.5 * (0.5 + trustIn(w, 'security') / 100);
     const pressure = f.anger * 0.3 + f.grievance * 0.3 + f.fear * 0.1 + cohesion * 12 + leader * 0.12 - f.trust * 0.22 - patrol - (security.power > 0.5 ? 2 : 0);
     f.unrestPressure = pressure + factionPressure(ctx, f.id);
     const target: UnrestLevel = f.unrestPressure < 16 ? 0 : pressure < 24 ? 1 : pressure < 32 ? 2 : pressure < 40 ? 3 : pressure < 48 ? 4 : 5;
@@ -274,7 +282,7 @@ export function socialHour(ctx: Ctx) {
   const fedDays = w.resources.food.real / Math.max(1, ctx.population);
   const wetDays = w.resources.water.real / Math.max(1, ctx.population + 470);
   const performance = (fedDays >= 10 ? 4 : fedDays >= 5 ? 2 : 0) + (wetDays >= 3 ? 3 : wetDays >= 1.5 ? 1 : 0) + (w.assets.generator.state !== 'failed' && w.assets.pump_main.state !== 'failed' ? 3 : 0);
-  const legitTarget = w.psychology.trust * 0.6 + 30 + performance - shortages - unrestTotal * 1.2 - (w.policies.emergencyPowers ? 8 : 0) - (hasTag(w, 'judge_bypassed') ? 8 : 0);
+  const legitTarget = w.psychology.trust * 0.6 + 30 + (trustIn(w, 'mayor') - 50) * 0.12 + performance - shortages - unrestTotal * 1.2 - (w.policies.emergencyPowers ? 8 : 0) - (hasTag(w, 'judge_bypassed') ? 8 : 0);
   w.psychology.legitimacy = clamp(w.psychology.legitimacy + (legitTarget - w.psychology.legitimacy) * 0.01);
   const sheriff = holder(w, 'sheriff');
   const authTarget = 40 + (sheriff ? sheriff.skill * 0.25 : 0) + w.psychology.legitimacy * 0.2 - unrestTotal * 2 + (w.policies.emergencyPowers ? 12 : 0);
@@ -327,7 +335,8 @@ export function propagate(ctx: Ctx, sourceId: CitizenId, severity: number, kind:
   const src = w.citizens[sourceId];
   const visited = new Map<number, number>();
   const queue: [number, number, number][] = [[sourceId, 0, 1]];
-  const unjust = (100 - legitimacy) / 100;
+  // Un judiciaire discrédité : même une arrestation fondée paraît injuste.
+  const unjust = Math.min(1, (100 - legitimacy) / 100 + (kind === 'arrest' || kind === 'execution' ? Math.max(0, 40 - trustIn(w, 'judiciary')) / 100 : 0));
   const tolerance = diff(w).tolerance;
   while (queue.length) {
     const [id, depth, strength] = queue.shift()!;
@@ -489,7 +498,8 @@ export function supplyTheftDay(ctx: Ctx) {
   const sheriff = holder(w, 'sheriff');
   const scarcity = 1 - Math.min(1, w.resources.parts.real / 250) * 0.5 - Math.min(1, w.resources.medicine.real / 400) * 0.5;
   const corruption = chief ? (100 - chief.integrity) / 100 : 0.6;
-  const security = (sheriff ? sheriff.skill / 100 : 0.3) * (ctx.staff.security / Math.max(1, w.sectors.security.staffingTarget)) * (hasTag(w, 'supply_controls') ? 1.6 : 1);
+  const guarded = w.floors.filter((f) => f.sector === 'supplies').reduce((s, f) => s + patrolOf(f), 0);
+  const security = (sheriff ? sheriff.skill / 100 : 0.3) * (ctx.staff.security / Math.max(1, w.sectors.security.staffingTarget)) * (hasTag(w, 'supply_controls') ? 1.6 : 1) + guarded * 0.25;
   const tension = w.psychology.fear / 200 + (100 - w.psychology.morale) / 200;
   const p = clamp(0.05 + scarcity * 0.25 + corruption * 0.3 + tension * 0.2 - security * 0.35, 0.01, 0.8);
   if (!rng.chance(p)) return;

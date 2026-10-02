@@ -11,6 +11,7 @@ import { arrestCitizen } from './social';
 import { schedule } from './infrastructure';
 import { applyVerdict, caseOf } from './justice';
 import { remember } from './years';
+import { patrolOf } from './patrols';
 import { diff } from '../data/difficulty';
 
 export const STAGE_LABELS = ['Cercle discret', 'Mouvement', 'Organisation', 'Préparation', 'Insurrection'];
@@ -146,7 +147,8 @@ export function factionsDay(ctx: Ctx) {
     // Détection : DSI, shérif, responsables d'étage
     if (!f.detected && f.stage >= 1) {
       const sheriff = holder(w, 'sheriff');
-      const p = 0.15 + ctx.infoAccuracy * 0.25 + (sheriff ? sheriff.skill / 400 : 0) + f.stage * 0.1;
+      const watched = f.floorIds.reduce((s, id) => s + patrolOf(w.floors.find((x) => x.id === id)), 0);
+      const p = 0.15 + ctx.infoAccuracy * 0.25 + (sheriff ? sheriff.skill / 400 : 0) + f.stage * 0.1 + watched * 0.08;
       if (f.stage >= 2 || rng.chance(p)) {
         f.detected = true;
         journal(w, `Le shérif identifie un groupe organisé : « ${f.name} » (${SECTOR_NAMES[f.sector]}), mené par ${fullName(leader)}.`, 'important', f.floorIds[0]);

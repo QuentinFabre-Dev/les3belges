@@ -52,7 +52,7 @@ export default function App() {
   });
   const debug = new URLSearchParams(location.search).has('debug');
   // Mode debug : accès au store depuis la console (et pour les captures automatisées).
-  if (debug) Object.assign(window, { silo: useGame, siloSound: sound });
+  if (debug) Object.assign(window, { silo: useGame, siloSound: sound, siloSend: send });
 
   // Joueur déjà initié : le temps démarre directement.
   useEffect(() => {

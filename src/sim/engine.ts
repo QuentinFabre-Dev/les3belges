@@ -53,6 +53,9 @@ import { rumorAction, rumorsHour, startRumor } from './systems/rumors';
 import { DEMAND_LABELS, STAGE_LABELS, factionAction, factionsDay, setStage } from './systems/factions';
 import { convene, councilChoice, councilReadyIn, councilView, initAffinity } from './systems/council';
 import { DIFFICULTY, diff } from './data/difficulty';
+import { forecast } from './systems/forecast';
+import { initInstitutions, institutionsDay, institutionsView } from './systems/institutions';
+import { patrolCapacity, patrolHour, patrolsUsed, setPatrol } from './systems/patrols';
 import { calendar, checkDefeat, checkVictory, demographyDay, remember, yearEnd } from './systems/years';
 import { addTag, dayOf, fullName, hasTag, holder, hourOf, journal, minuteOfDay, pruneIncidents } from './util';
 
@@ -98,6 +101,7 @@ export class Engine {
     world.yearReportSeen ??= world.yearReports.length;
     world.yearStart ??= { population: world.citizens.filter((c) => c.lifeState === 'alive').length, deaths: world.stats.deaths, births: world.stats.births, arrests: world.stats.arrests, tick: world.tick };
     world.policies.births ??= 'normal';
+    initInstitutions(world);
     if (world.gameOver && !('kind' in world.gameOver)) world.gameOver = undefined;
     this.w = world;
     this.ctx = this.makeCtx();
@@ -142,6 +146,7 @@ export class Engine {
     processPromises(ctx);
     electionHour(ctx);
     justiceHour(ctx);
+    patrolHour(ctx);
     rumorsHour(ctx);
     if (w.tick > 0) evaluateEvents(ctx);
     // Mesure de la fiabilité de l'information : DSI + serveurs + responsables.
@@ -168,6 +173,7 @@ export class Engine {
     w.lens = Math.max(0.05, w.lens - 0.012 - ctx.rng.next() * 0.01);
     reportsDay(ctx);
     pruneIncidents(w);
+    institutionsDay(ctx);
     // Démographie : vieillesse et loterie des naissances.
     demographyDay(ctx, () => this.birth());
     // Crises vécues collectivement.
@@ -279,6 +285,9 @@ export class Engine {
         }
         journal(w, `Politique modifiée : ${policyLabel(cmd.key, cmd.value)}`, 'info');
         updateEfficiency(ctx);
+        break;
+      case 'SET_PATROL':
+        setPatrol(ctx, cmd.floor, cmd.units);
         break;
       case 'SET_LOCKDOWN':
         setLockdown(ctx, cmd.floor, cmd.level);
@@ -476,9 +485,14 @@ export class Engine {
     }
   }
 
-  private debug(action: 'fail' | 'resources' | 'unrest' | 'accident' | 'faction' | 'rumor' | 'arrest' | 'year' | 'victory', target?: string) {
+  private debug(action: 'fail' | 'resources' | 'unrest' | 'accident' | 'faction' | 'rumor' | 'arrest' | 'year' | 'victory' | 'hour', target?: string) {
     const w = this.w;
     const ctx = this.ctx;
+    if (action === 'hour') {
+      // Avance la simulation jusqu'à l'heure demandée (outil de test).
+      for (let i = 0; i < TICKS_PER_DAY && hourOf(w) !== Number(target); i++) this.tick();
+      return;
+    }
     if (action === 'year' || action === 'victory') {
       // Saute à la veille du prochain tournant d'année (ou de la fin du mandat).
       const year = action === 'victory' ? DIFFICULTY[w.difficulty].mandateYears : calendar(w).yearIndex + 1;
@@ -740,6 +754,7 @@ export class Engine {
         trust: Math.round(f.trust),
         unrest: f.unrest,
         lockdown: f.lockdown,
+        patrol: f.patrol ?? 0,
         alert,
         activity: { work: pr.work, walk: pr.walk, eat: pr.eat, sleep: pr.sleep, leisure: pr.leisure },
         incidentCount: incidents.length,
@@ -861,6 +876,7 @@ export class Engine {
           const floors = w.floors.map((f) => ({ id: f.id, label: f.label, reach: Math.round(clamp((r.reach[f.id] ?? 0) + noise(50 + r.id + f.index) * 0.15, 0, 1) * 100) / 100 }));
           return {
             id: r.id,
+            templateId: r.templateId,
             text: r.text,
             truth: r.known ? r.truth : 'unknown',
             status: r.status,
@@ -901,6 +917,9 @@ export class Engine {
           return out;
         }),
       council: councilView(ctx),
+      patrols: { capacity: patrolCapacity(ctx), used: patrolsUsed(w) },
+      institutions: institutionsView(ctx),
+      forecast: forecast(ctx, resources),
       councilReadyInHours: councilReadyIn(ctx),
     };
   }

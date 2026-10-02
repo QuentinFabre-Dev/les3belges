@@ -98,7 +98,24 @@ export function OpinionPanel() {
   const selectCitizen = useGame((g) => g.selectCitizen);
   const selectFloor = useGame((g) => g.selectFloor);
   return (
-    <Panel title="Opinion : rumeurs et factions" onClose={close}>
+    <Panel title="Opinion : confiance, rumeurs et factions" onClose={close}>
+      <h3>Confiance par institution</h3>
+      <p className="small muted">Le silo ne juge pas « l’administration » en bloc. Une justice discréditée rend chaque arrestation suspecte ; une mécanique dont on doute fait trembler au moindre bruit de machine ; une mairie qui tient parole voit sa légitimité remonter.</p>
+      <div className="inst-grid">
+        {s.institutions.map((i) => (
+          <div key={i.id} className="inst">
+            <div className="row between">
+              <strong>{i.label}</strong>
+              <span className={i.trust < 35 ? 'bad' : i.trust < 50 ? 'warn' : ''}>
+                {i.trust}
+                {i.trend !== 0 && <small className={i.trend > 0 ? 'ok' : 'bad'}> {i.trend > 0 ? '▲' : '▼'}{Math.abs(i.trend)}</small>}
+              </span>
+            </div>
+            <Bar value={i.trust} />
+            <div className="tiny muted">{i.causes.length ? i.causes.join(' · ') : 'Rien de notable'}</div>
+          </div>
+        ))}
+      </div>
       <h3>Rumeurs</h3>
       <p className="small muted">
         Les rumeurs naissent de faits réels ou inventés et se propagent d’étage en étage, très vite dans les réfectoires à l’heure des repas. Vous ne savez pas si elles sont vraies sans enquête de la DSI. Démentir une rumeur vraie peut se retourner contre vous ; confirmer une rumeur fausse aussi.

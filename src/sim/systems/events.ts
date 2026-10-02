@@ -1,6 +1,7 @@
 import { EVENTS } from '../data/events';
 import { SCALE, SECTOR_FLOOR, SECTOR_FLOORS, SECTOR_NAMES, TICKS_PER_DAY, TICKS_PER_HOUR, YEAR_DAYS } from '../data/world';
 import { remember, soothe } from './years';
+import { shakeTrust } from './institutions';
 import { clamp } from '../rng';
 import type { Ctx } from '../context';
 import type {
@@ -554,6 +555,8 @@ export function processPromises(ctx: Ctx) {
         if (!ok) c.grievance = clamp(c.grievance + 5);
       }
       w.psychology.legitimacy = clamp(w.psychology.legitimacy + (ok ? 4 : -8));
+      w.memories.push({ tick: w.tick, type: ok ? 'promise_kept' : 'promise_broken', text: pr.text, severity: 0.4, perceivedLegitimacy: ok ? 80 : 20 });
+      shakeTrust(w, 'mayor', ok ? 4 : -8);
       journal(w, ok ? `Promesse tenue : ${pr.text}` : `Promesse non tenue : ${pr.text}`, ok ? 'info' : 'important');
     }
   }
@@ -794,6 +797,7 @@ export function decisionView(ctx: Ctx, p: PendingDecision): DecisionView | null 
   }
   return {
     uid: p.uid,
+    defId: p.defId,
     title: interpolate(ctx, def.title, p),
     description: interpolate(ctx, def.description, p),
     severity: def.severity,

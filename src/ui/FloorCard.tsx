@@ -111,6 +111,26 @@ export function FloorCard() {
           </button>
         ))}
       </div>
+      <div className="row between small patrol-row" title="Les adjoints dissuadent vols, rumeurs et débordements, mais un étage quadrillé se sent surveillé (peur, rancœur).">
+        <span className="muted">Patrouilles d’adjoints</span>
+        <span className="row gap">
+          <button className="btn small" disabled={!f.patrol} onClick={() => send({ type: 'SET_PATROL', floor: f.id, units: f.patrol - 1 })} aria-label="Retirer une patrouille">
+            −
+          </button>
+          <strong>{f.patrol}</strong>
+          <button
+            className="btn small"
+            disabled={f.patrol >= 3 || s.patrols.used >= s.patrols.capacity}
+            onClick={() => send({ type: 'SET_PATROL', floor: f.id, units: f.patrol + 1 })}
+            aria-label="Ajouter une patrouille"
+          >
+            +
+          </button>
+          <span className="muted tiny">
+            {s.patrols.capacity - s.patrols.used}/{s.patrols.capacity} libres
+          </span>
+        </span>
+      </div>
       <div className="row gap">
         <button className="btn small" onClick={() => useGame.getState().selectRoom(f.id, 'left', true)} title="Vue Salle">
           Salle ouest

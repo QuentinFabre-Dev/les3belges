@@ -2,6 +2,7 @@ import { clamp } from '../rng';
 import type { Ctx } from '../context';
 import type { InfrastructureAsset } from '../types';
 import { remember } from './years';
+import { shakeTrust } from './institutions';
 import { floorById, hasTag, holder, hourOf, journal, message, openIncident, resolveIncidents } from '../util';
 
 export function schedule(ctx: Ctx, eventId: string, data: { floor?: string; assetId?: string; subjectId?: number } = {}) {
@@ -149,6 +150,7 @@ export function infrastructureHour(ctx: Ctx) {
         a.condition = Math.max(a.condition, planned ? 0.9 : 0.62);
         resolveIncidents(w, { assetId: a.id });
         journal(w, `${a.name} : ${planned ? 'maintenance terminée' : 'réparée et remise en service'}`, 'info', a.floor);
+        if (!planned) shakeTrust(w, 'mechanics', a.critical ? 3 : 1);
         if (a.id === 'generator') {
           for (const c of w.citizens) if (c.lifeState === 'alive') c.fear = clamp(c.fear - 15);
         }
@@ -162,6 +164,7 @@ export function fail(ctx: Ctx, a: InfrastructureAsset) {
   const causes = failureCauses(ctx, a);
   a.state = 'failed';
   a.repairProgress = 0;
+  shakeTrust(w, 'mechanics', a.critical ? -8 : -3);
   a.condition = Math.min(a.condition, 0.25);
   openIncident(w, 'failure', `Panne : ${a.name}`, a.critical ? 'critical' : 'important', causes, a.floor, a.id);
   w.memories.push({ tick: w.tick, type: `failure_${a.id}`, text: `Panne de ${a.name}`, severity: a.critical ? 0.7 : 0.4, perceivedLegitimacy: 50 });

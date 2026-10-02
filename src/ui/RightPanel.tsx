@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { send, useGame } from '../game/store';
-import type { DecisionView } from '../sim/types';
+import type { DecisionView, IncidentView, Severity } from '../sim/types';
+import type { View } from '../game/store';
 import { Icon, Portrait, RoomThumb, severityColor, severityLabel } from './common';
 
 export function DecisionCard({ d, compact = false }: { d: DecisionView; compact?: boolean }) {
@@ -72,7 +73,7 @@ export function RightPanel() {
   if (!s) return <aside className="right" />;
   const main = s.decisions.find((d) => d.uid === focused) ?? s.decisions[0];
   const others = s.decisions.filter((d) => d !== main);
-  const incidents = s.incidents.filter((i) => i.status !== 'resolved').slice(0, 4);
+  const groups = groupIncidents(s.incidents.filter((i) => i.status !== 'resolved')).slice(0, 4);
   return (
     <aside className="right">
       {main ? (
@@ -103,6 +104,21 @@ export function RightPanel() {
           ))}
         </div>
       )}
+      {s.forecast.length > 0 && (
+        <div className="panel">
+          <header>
+            <h3>À venir</h3>
+            <span className="muted small">si rien ne change</span>
+          </header>
+          {s.forecast.map((f) => (
+            <button key={f.id} className="list-row forecast" onClick={() => (f.floor ? selectFloor(f.floor, true) : f.view ? setView(f.view as View) : undefined)}>
+              <span className="dot" style={{ background: severityColor(f.severity) }} />
+              <span className="grow small">{f.text}</span>
+              <small className="muted">{eta(f.inHours)}</small>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="panel">
         <header>
           <h3>Incidents récents</h3>
@@ -110,18 +126,43 @@ export function RightPanel() {
             {s.incidents.filter((i) => i.status !== 'resolved').length} non résolus
           </button>
         </header>
-        {incidents.length === 0 && <p className="muted small">Aucun incident actif.</p>}
-        {incidents.map((i) => (
-          <button key={i.id} className="list-row" onClick={() => (i.floor ? selectFloor(i.floor, true) : setView('incidents'))}>
-            <Icon name="alert" size={18} color={severityColor(i.severity)} />
-            <span className="grow">
-              <span>{i.title}</span>
-              <small className="muted">{i.floorLabel ? `Étage ${i.floorLabel}` : 'Silo'}</small>
-            </span>
-            <small className="muted">{i.ageHours < 1 ? 'à l’instant' : i.ageHours < 24 ? `il y a ${Math.round(i.ageHours)} h` : `il y a ${Math.round(i.ageHours / 24)} j`}</small>
-          </button>
-        ))}
+        {groups.length === 0 && <p className="muted small">Aucun incident actif.</p>}
+        {groups.map((g) => {
+          const i = g.items[0];
+          const many = g.items.length > 1;
+          return (
+            <button key={g.key} className="list-row" onClick={() => (!many && i.floor ? selectFloor(i.floor, true) : setView('incidents'))}>
+              <Icon name="alert" size={18} color={severityColor(g.severity)} />
+              <span className="grow">
+                <span>{many ? `${GROUP_LABEL[i.type] ?? 'Incidents'} ×${g.items.length}` : i.title}</span>
+                <small className="muted">{many ? g.items.map((x) => x.floorLabel ?? 'Silo').join(', ') : i.floorLabel ? `Étage ${i.floorLabel}` : 'Silo'}</small>
+              </span>
+              <small className="muted">{i.ageHours < 1 ? 'à l’instant' : i.ageHours < 24 ? `il y a ${Math.round(i.ageHours)} h` : `il y a ${Math.round(i.ageHours / 24)} j`}</small>
+            </button>
+          );
+        })}
       </div>
     </aside>
   );
+}
+
+const GROUP_LABEL: Record<string, string> = { failure: 'Pannes', unrest: 'Troubles', mine_accident: 'Accidents miniers', contamination: 'Contaminations', sabotage: 'Sabotages' };
+const SEV_RANK: Record<Severity, number> = { critical: 0, important: 1, attention: 2, info: 3 };
+
+/** Regroupe les incidents de même nature (§35) : « Pannes ×3 » plutôt que trois lignes. */
+function groupIncidents(list: IncidentView[]) {
+  const map = new Map<string, { key: string; items: IncidentView[]; severity: Severity }>();
+  for (const i of list) {
+    const g = map.get(i.type) ?? { key: i.type, items: [], severity: i.severity };
+    g.items.push(i);
+    if (SEV_RANK[i.severity] < SEV_RANK[g.severity]) g.severity = i.severity;
+    map.set(i.type, g);
+  }
+  return [...map.values()].sort((a, b) => SEV_RANK[a.severity] - SEV_RANK[b.severity]);
+}
+
+function eta(hours: number) {
+  if (hours <= 0.5) return 'maintenant';
+  if (hours < 24) return `${Math.round(hours)} h`;
+  return `${Math.round(hours / 24)} j`;
 }

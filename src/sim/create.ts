@@ -30,6 +30,7 @@ import type {
   Difficulty,
 } from './types';
 import { journal, message } from './util';
+import { initInstitutions } from './systems/institutions';
 
 export const WORLD_VERSION = 1;
 
@@ -374,7 +375,9 @@ export function createWorld(seed = Date.now() % 2147483647, difficulty: Difficul
     yearReports: [],
     yearReportSeen: 0,
     yearStart: { population: citizens.length, deaths: 0, births: 0, arrests: 0, tick: 0 },
+    institutions: {} as WorldState['institutions'],
   };
+  initInstitutions(w);
 
   journal(w, 'Prise de fonction de l’administration externe du Silo-01.', 'info');
   message(

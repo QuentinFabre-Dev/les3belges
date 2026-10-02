@@ -22,6 +22,7 @@ export function SiloCanvas() {
       }
       view = v;
       viewRef.current = v;
+      if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { siloView: v });
       const s = useGame.getState().snapshot;
       if (s) v.setSnapshot(s);
       v.onSelectFloor = (id) => {
