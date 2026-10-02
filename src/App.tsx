@@ -1,0 +1,97 @@
+import { useEffect } from 'react';
+import { send, useGame } from './game/store';
+import { severityColor } from './ui/common';
+import { FloorCard } from './ui/FloorCard';
+import { RightPanel } from './ui/RightPanel';
+import { Sidebar } from './ui/Sidebar';
+import { SiloCanvas } from './ui/SiloCanvas';
+import { TopBar } from './ui/TopBar';
+import { InstitutionsPanel, PoliciesPanel } from './ui/panels/Governance';
+import { DecisionsPanel, FloorsPanel, IncidentsPanel, InfrastructurePanel, JournalPanel, MessagesPanel, ResourcesPanel, SettingsPanel } from './ui/panels/Panels';
+import { PopulationPanel } from './ui/panels/Population';
+import type { Speed } from './sim/types';
+
+const PANELS = {
+  floors: FloorsPanel,
+  population: PopulationPanel,
+  resources: ResourcesPanel,
+  infrastructure: InfrastructurePanel,
+  incidents: IncidentsPanel,
+  decisions: DecisionsPanel,
+  institutions: InstitutionsPanel,
+  policies: PoliciesPanel,
+  messages: MessagesPanel,
+  journal: JournalPanel,
+  settings: SettingsPanel,
+};
+
+export default function App() {
+  const view = useGame((g) => g.view);
+  const ready = useGame((g) => !!g.snapshot);
+  const toasts = useGame((g) => g.toasts);
+  const gameOver = useGame((g) => g.snapshot?.gameOver);
+  const Active = view !== 'global' ? PANELS[view] : null;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT') return;
+      const speeds: Record<string, Speed> = { ' ': 0, '1': 1, '2': 2, '3': 5, '4': 10 };
+      if (e.key in speeds) {
+        e.preventDefault();
+        const cur = useGame.getState().snapshot?.speed ?? 1;
+        send({ type: 'SET_SPEED', speed: e.key === ' ' ? (cur === 0 ? 1 : 0) : speeds[e.key] });
+      }
+      if (e.key === 'Escape') {
+        useGame.getState().setView('global');
+        useGame.getState().selectFloor(undefined);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  return (
+    <div className="app">
+      <TopBar />
+      <Sidebar />
+      <main className="stage">
+        <SiloCanvas />
+        {Active && <Active />}
+        {view === 'global' && <FloorCard />}
+        {!ready && <div className="loading">Initialisation du silo…</div>}
+      </main>
+      <RightPanel />
+      <div className="toasts">
+        {toasts.map((t) => (
+          <div key={t.id} className="toast" style={{ borderColor: severityColor(t.severity) }}>
+            {t.text}
+          </div>
+        ))}
+      </div>
+      {gameOver && (
+        <div className="modal-back">
+          <div className="modal gameover">
+            <h2>Le silo est perdu</h2>
+            <p>
+              Jour {gameOver.day} — {gameOver.reason}
+            </p>
+            <h4>Derniers événements marquants</h4>
+            {gameOver.chain.map((c, i) => (
+              <div key={i} className="small cause">
+                ↳ {c}
+              </div>
+            ))}
+            <div className="row gap">
+              <button className="btn" onClick={() => send({ type: 'NEW_GAME' })}>
+                Nouvelle partie
+              </button>
+              <button className="btn" onClick={() => send({ type: 'LOAD' })}>
+                Charger la dernière sauvegarde
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
