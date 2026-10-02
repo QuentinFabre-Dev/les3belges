@@ -77,8 +77,10 @@ export function populationHour(ctx: Ctx) {
 
     // Santé
     let dh = 0;
-    if (hungry) dh -= 0.25;
-    if (thirsty) dh -= (1 - waterShare) * 0.6;
+    // Les plus vulnérables (enfants, anciens, malades) souffrent d'abord des pénuries.
+    const frailty = (c.age < 10 || c.age > 65 ? 1.6 : 0.75) * (0.7 + ((c.id * 7919) % 100) / 166);
+    if (hungry) dh -= 0.25 * frailty;
+    if (thirsty) dh -= (1 - waterShare) * 0.6 * frailty;
     if (home.cleanliness < 22) dh -= 0.15;
     if (c.age > 70) dh -= 0.04;
     if (c.fatigue > 75) dh -= 0.2;
@@ -99,7 +101,10 @@ export function healthDeaths(ctx: Ctx) {
   const { w, rng } = ctx;
   for (const c of w.citizens) {
     if (c.lifeState !== 'alive') continue;
-    if (c.health <= 0) killCitizen(ctx, c.id, 'Conditions de vie', 'negligence');
+    if (c.health <= 0) {
+      const r = ctx.w.resources;
+      killCitizen(ctx, c.id, r.water.real <= 1 ? 'Conditions de vie (déshydratation)' : r.food.real <= 1 ? 'Conditions de vie (famine)' : 'Conditions de vie', 'negligence');
+    }
     else if (c.age > 72 && rng.chance(0.0004)) killCitizen(ctx, c.id, 'Mort naturelle', 'accident');
   }
 }

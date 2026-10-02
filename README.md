@@ -15,6 +15,11 @@ npm test           # simulation headless (vitest)
 npm run build      # typecheck + build de production
 ```
 
+Au premier lancement : introduction (le Pacte), puis tutoriel guidé. Les deux sont rejouables
+depuis les Paramètres. Ajouter `?debug` à l'URL affiche des outils de test (pannes, crises).
+`npm run balance` lance le banc d'équilibrage (joueur passif vs joueur automatique).
+Le suivi de développement est dans [`docs/PLAN.md`](docs/PLAN.md).
+
 Raccourcis : `Espace` pause, `1`–`4` vitesses ×1/×2/×5/×10, `Échap` revenir à la vue globale.
 Molette pour défiler, `Ctrl`+molette pour zoomer, glisser pour déplacer, clic sur un étage ou un habitant.
 

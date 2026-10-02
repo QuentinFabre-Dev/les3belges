@@ -23,3 +23,8 @@ for r in 0 1 2; do for c in 0 1 2; do
   convert "$SRC/portraits.png" -crop 480x480+$(( c*510+16 ))+$(( r*510+16 )) +repage -filter Box -resize 96x96 -dither None -colors 64 "$OUT/portraits/${names[$i]}.png"; i=$((i+1))
 done; done
 convert "$SRC/surface.png" -filter Box -resize 1280x320 -dither None -colors 64 "$OUT/surface.png"
+# Intro : le Pacte (pact_closed.png / pact_open.png en 2048×1152, la version ouverte générée avec la fermée en référence)
+mkdir -p "$OUT/intro"
+convert "$SRC/pact_closed.png" -filter Box -resize 1024x576 -dither None -colors 96 "$OUT/intro/pact_closed.png"
+convert "$SRC/pact_open.png" -filter Box -resize 1024x576 -dither None -colors 96 "$OUT/intro/pact_open.png"
+convert "$SRC/pact_open.png" -crop 620x560+1050+300 +repage -filter Box -resize 310x280 -dither None -colors 48 "$OUT/intro/page.png"

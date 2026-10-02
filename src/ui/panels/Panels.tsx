@@ -317,6 +317,21 @@ export function SettingsPanel() {
         </button>
       </div>
       <p className="small muted">Sauvegarde automatique chaque jour de jeu (IndexedDB, dans ce navigateur).</p>
+      <div className="row gap wrap">
+        <button className="btn" onClick={() => useGame.getState().setPhase('intro')}>
+          Revoir l’introduction
+        </button>
+        <button
+          className="btn"
+          onClick={() => {
+            send({ type: 'SET_SPEED', speed: 0 });
+            useGame.getState().setView('global');
+            useGame.getState().setPhase('tutorial');
+          }}
+        >
+          Relancer le tutoriel
+        </button>
+      </div>
       <h3>Graphismes</h3>
       <label className="field">
         <span>Densité d’habitants visibles</span>

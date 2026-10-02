@@ -11,11 +11,13 @@ import {
   dismissOffice,
   electionHour,
   evaluateEvents,
+  eventDef,
   expireDecisions,
   processDelayed,
   processPromises,
   rebalanceStaff,
   setLockdown,
+  spawn,
   startElection,
 } from './systems/events';
 import {
@@ -48,7 +50,7 @@ import { addTag, dayOf, fullName, hasTag, holder, hourOf, journal, minuteOfDay, 
 export class Engine {
   w: WorldState;
   ctx: Ctx;
-  speed: Speed = 1;
+  speed: Speed = 0; // la partie démarre en pause (intro / tutoriel)
 
   constructor(world?: WorldState) {
     this.w = world ?? createWorld();
@@ -108,6 +110,7 @@ export class Engine {
     const w = this.w;
     countStaff(ctx);
     updateEfficiency(ctx);
+    if (w.tick === 0) energyStep(ctx); // pour que le snapshot initial (en pause) soit juste
     computePresence(ctx);
     populationHour(ctx);
     sanitationHour(ctx);
@@ -193,7 +196,17 @@ export class Engine {
     else if (insurgent >= 3) reason = 'Une insurrection a pris le contrôle de plusieurs étages.';
     else if (w.stability < 8 && w.psychology.legitimacy < 15) reason = 'L’administration a perdu toute légitimité : le silo ne vous obéit plus.';
     if (!reason) return;
-    const chain = w.memories.slice(-8).map((m) => `Jour ${Math.floor(m.tick / TICKS_PER_DAY) + 1} — ${m.text}`);
+    // Chaîne lisible : on regroupe les morts anonymes, on garde les événements marquants.
+    const recent = w.memories.filter((m) => m.tick > w.tick - TICKS_PER_DAY * 20);
+    const chain: string[] = [];
+    const deathsByDay = new Map<number, number>();
+    for (const m of recent) {
+      const day = Math.floor(m.tick / TICKS_PER_DAY) + 1;
+      if (m.type.startsWith('death') && m.text.includes('Conditions de vie')) deathsByDay.set(day, (deathsByDay.get(day) ?? 0) + 1);
+      else if (chain.length < 10) chain.push(`Jour ${day} — ${m.text}`);
+    }
+    for (const [day, n] of deathsByDay) chain.push(`Jour ${day} — ${n} décès liés aux conditions de vie`);
+    chain.sort((a, b) => Number(a.split(' ')[1]) - Number(b.split(' ')[1]));
     w.gameOver = { day: dayOf(w), reason, chain };
     journal(w, `FIN : ${reason}`, 'critical');
   }
@@ -269,6 +282,14 @@ export class Engine {
         } else addTag(w, `repair_${a.id}`, 1);
         break;
       }
+      case 'SPAWN_EVENT': {
+        const def = eventDef(cmd.eventId);
+        if (def) spawn(ctx, def, { floor: cmd.floor, assetId: cmd.assetId });
+        break;
+      }
+      case 'DEBUG':
+        this.debug(cmd.action, cmd.target);
+        break;
       case 'MARK_READ': {
         const m = w.messages.find((x) => x.id === cmd.messageId);
         if (m) m.read = true;
@@ -394,6 +415,34 @@ export class Engine {
         if (c.officeId) dismissOffice(ctx, c.officeId);
         break;
     }
+  }
+
+  private debug(action: 'fail' | 'resources' | 'unrest' | 'accident', target?: string) {
+    const w = this.w;
+    const ctx = this.ctx;
+    if (action === 'fail') this.forceFailure(target ?? 'generator');
+    else if (action === 'resources') {
+      for (const k of ['food', 'water', 'parts', 'materials', 'medicine'] as const) {
+        const r = w.resources[k];
+        r.real = r.declared = r.capacity;
+      }
+      w.resources.battery = 100;
+    } else if (action === 'unrest') {
+      const f = w.floors.find((x) => x.id === (target ?? 'f05'));
+      if (f) for (const c of w.citizens) if (c.lifeState === 'alive' && c.homeFloor === f.id) {
+        c.anger = clamp(c.anger + 40);
+        c.grievance = clamp(c.grievance + 35);
+      }
+    } else if (action === 'accident') {
+      const miner = w.citizens.find((c) => c.lifeState === 'alive' && c.sector === 'mines');
+      if (miner) {
+        killCitizen(ctx, miner.id, 'Accident minier', 'negligence');
+        ctx.scheduled.push('mine_accident');
+        ctx.scheduledCtx['mine_accident'] = { floor: 'f12', subjectId: miner.id };
+      }
+    }
+    evaluateEvents(ctx);
+    journal(w, `[debug] ${action}${target ? ' ' + target : ''}`, 'info');
   }
 
   // Outil de debug / test : force la panne d'un équipement.

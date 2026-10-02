@@ -24,7 +24,7 @@ export function Sidebar() {
   return (
     <nav className="sidebar">
       {items.map(([id, label, icon, badge]) => (
-        <button key={id} className={`nav ${view === id ? 'active' : ''}`} onClick={() => setView(id)}>
+        <button key={id} data-tut={`nav-${id}`} className={`nav ${view === id ? 'active' : ''}`} onClick={() => setView(id)}>
           <Icon name={icon} size={20} />
           <span>{label}</span>
           {!!badge && <span className="badge">{badge}</span>}

@@ -61,7 +61,7 @@ export function infrastructureHour(ctx: Ctx) {
   }
 
   // Chocs : une pièce casse, un joint lâche. L'usure n'est jamais parfaitement linéaire.
-  if (rng.chance(0.4 / 24)) {
+  if (rng.chance(0.55 / 24)) {
     const pool = assets.filter((a) => a.state === 'running' || a.state === 'degraded');
     const weights = pool.map((a) => a.wearPerDay * (a.sector === 'mines' ? w.policies.mineQuota : 1));
     let roll = rng.next() * weights.reduce((x, y) => x + y, 0);

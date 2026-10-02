@@ -36,7 +36,7 @@ export function TopBar() {
           <div className="brand-sub">GESTION EXTERNE</div>
         </div>
       </div>
-      <div className="resources">
+      <div className="resources" data-tut="resources">
         <button className="res" onClick={() => setView('population')} title="Population totale du silo">
           <Icon name="users" size={26} color="#c8ced6" />
           <div>
@@ -87,7 +87,7 @@ export function TopBar() {
           </div>
         </div>
         <Icon name={night ? 'moon' : 'sun'} size={22} color={night ? '#8fb3e0' : '#f0c030'} />
-        <div className="speeds">
+        <div className="speeds" data-tut="speeds">
           {speeds.map(([sp, icon, label]) => (
             <button key={sp} className={`speed ${s.speed === sp ? 'active' : ''}`} onClick={() => send({ type: 'SET_SPEED', speed: sp })} title={label} aria-label={label}>
               <Icon name={icon} size={16} fill />

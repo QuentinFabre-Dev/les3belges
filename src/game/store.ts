@@ -26,7 +26,27 @@ function loadSettings(): RenderSettings {
   return { density: 150, secondary: 'standard', lighting: 'medium', adaptive: true };
 }
 
+export type Phase = 'intro' | 'tutorial' | 'play';
+
+const flag = (k: string) => {
+  try {
+    return localStorage.getItem(k) === '1';
+  } catch {
+    return false;
+  }
+};
+export const setFlag = (k: string, v: boolean) => {
+  try {
+    if (v) localStorage.setItem(k, '1');
+    else localStorage.removeItem(k);
+  } catch {
+    /* ignore */
+  }
+};
+
 interface GameStore {
+  phase: Phase;
+  setPhase: (p: Phase) => void;
   snapshot?: Snapshot;
   view: View;
   selectedFloor?: string;
@@ -44,6 +64,8 @@ interface GameStore {
 }
 
 export const useGame = create<GameStore>((set, get) => ({
+  phase: !flag('silo-01:intro-done') ? 'intro' : !flag('silo-01:tutorial-done') ? 'tutorial' : 'play',
+  setPhase: (phase) => set({ phase }),
   view: 'global',
   settings: loadSettings(),
   toasts: [],

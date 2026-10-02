@@ -553,7 +553,7 @@ export class SiloView {
           n.authorized = true;
         }
       }
-      if (list.length > target + 1) {
+      if (list.length > target + 3) {
         // Surplus : ils prennent l'escalier
         for (const n of list.slice(0, list.length - target)) if (n.task !== 'post') this.leave(n);
       } else if (list.length < target) {
@@ -725,7 +725,7 @@ export class SiloView {
     if (r < 0.45) {
       n.mode = 'walk';
       n.tx = this.randomSpot(n.floor);
-      if (Math.random() < 0.12 && !n.leaving) this.leave(n);
+      if (Math.random() < 0.05 && !n.leaving) this.leave(n);
     } else if (r < 0.65) {
       // Discussion avec un voisin
       const other = this.npcs.find((o) => o !== n && o.active && o.floor === n.floor && o.mode !== 'stairs' && o.task === 'wander' && Math.abs(o.x - n.x) < 30);

@@ -1,5 +1,8 @@
-import { useEffect } from 'react';
-import { send, useGame } from './game/store';
+import { useEffect, useState } from 'react';
+import { send, setFlag, useGame } from './game/store';
+import { Intro } from './ui/Intro';
+import { Tutorial } from './ui/Tutorial';
+import { DebugPanel } from './ui/DebugPanel';
 import { severityColor } from './ui/common';
 import { FloorCard } from './ui/FloorCard';
 import { RightPanel } from './ui/RightPanel';
@@ -31,9 +34,25 @@ export default function App() {
   const toasts = useGame((g) => g.toasts);
   const gameOver = useGame((g) => g.snapshot?.gameOver);
   const Active = view !== 'global' ? PANELS[view] : null;
+  const phase = useGame((g) => g.phase);
+  const setPhase = useGame((g) => g.setPhase);
+  const [adminName, setAdminName] = useState(() => {
+    try {
+      return localStorage.getItem('silo-01:admin-name') || 'Administrateur';
+    } catch {
+      return 'Administrateur';
+    }
+  });
+  const debug = new URLSearchParams(location.search).has('debug');
+
+  // Joueur déjà initié : le temps démarre directement.
+  useEffect(() => {
+    if (phase === 'play') send({ type: 'SET_SPEED', speed: 1 });
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (useGame.getState().phase === 'intro') return;
       if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT') return;
       const speeds: Record<string, Speed> = { ' ': 0, '1': 1, '2': 2, '3': 5, '4': 10 };
       if (e.key in speeds) {
@@ -61,6 +80,27 @@ export default function App() {
         {!ready && <div className="loading">Initialisation du silo…</div>}
       </main>
       <RightPanel />
+      {phase === 'intro' && (
+        <Intro
+          onDone={(n) => {
+            setAdminName(n);
+            setFlag('silo-01:intro-done', true);
+            setPhase(localStorageFlag('silo-01:tutorial-done') ? 'play' : 'tutorial');
+            if (localStorageFlag('silo-01:tutorial-done')) send({ type: 'SET_SPEED', speed: 1 });
+          }}
+        />
+      )}
+      {phase === 'tutorial' && ready && (
+        <Tutorial
+          name={adminName}
+          onDone={() => {
+            setFlag('silo-01:tutorial-done', true);
+            setPhase('play');
+            if ((useGame.getState().snapshot?.speed ?? 0) === 0) send({ type: 'SET_SPEED', speed: 1 });
+          }}
+        />
+      )}
+      {debug && <DebugPanel />}
       <div className="toasts">
         {toasts.map((t) => (
           <div key={t.id} className="toast" style={{ borderColor: severityColor(t.severity) }}>
@@ -94,4 +134,12 @@ export default function App() {
       )}
     </div>
   );
+}
+
+function localStorageFlag(k: string) {
+  try {
+    return localStorage.getItem(k) === '1';
+  } catch {
+    return false;
+  }
 }

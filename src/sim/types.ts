@@ -429,6 +429,8 @@ export type GameCommand =
   | { type: 'SEND_REPAIR'; assetId: AssetId }
   | { type: 'MARK_READ'; messageId: number }
   | { type: 'NEW_GAME'; seed?: number }
+  | { type: 'SPAWN_EVENT'; eventId: string; floor?: FloorId; assetId?: AssetId }
+  | { type: 'DEBUG'; action: 'fail' | 'resources' | 'unrest' | 'accident'; target?: string }
   | { type: 'SAVE' }
   | { type: 'LOAD' };
 

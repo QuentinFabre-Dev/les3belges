@@ -1,0 +1,119 @@
+# SILO-01 — Plan de développement
+
+Suivi vivant de ce qui est fait et de ce qui reste, par rapport au document de conception
+(les numéros § renvoient à ses sections). Mis à jour à chaque étape.
+
+Légende : ✅ fait · 🟡 partiel · ⬜ à faire
+
+---
+
+## Feuille de route
+
+### Étape 0 — Socle (livrée)
+- ✅ Projet Vite + TypeScript + React + PixiJS + Zustand + Web Worker + IndexedDB (§17–18)
+- ✅ Simulation headless découplée du rendu, tick de 10 min, vitesses pause/×1/×2/×5/×10 (§9, §33)
+- ✅ 12 étages, 1 400 habitants, foyers, graphe social, responsables (§4, §6, §47)
+- ✅ Rendu pixel art du silo vertical, caméra/zoom, culling, PNJ poolés (§21–27)
+- ✅ ~35 décisions data-driven, effets différés, chaînes causales (§12–13, §37)
+- ✅ Assets générés (salles, portraits, surface) + script de découpe `tools/build-art.sh`
+
+### Étape 1 — Consolidation & entrée en jeu (livrée, sauf mesure de perf)
+- ✅ Scène d'introduction : prologue, le Pacte fermé, ouverture, 8 articles, serment, signature et sceau de cire
+- ✅ Tutoriel guidé en 12 étapes enchaîné après l'intro (projecteur, étapes à action : cliquer l'étage -08, trancher une vraie fuite, ouvrir Infrastructure, relancer le temps)
+- ✅ Intro et tutoriel rejouables depuis les Paramètres ; la partie démarre en pause
+- ✅ Mode debug (`?debug`) : pannes, accident minier, colère, « Je veux sortir », rumeur, stocks pleins
+- ✅ Banc d'équilibrage headless `npm run balance` (joueur passif vs joueur automatique)
+- ✅ Moins de va-et-vient dans la cage d'escalier
+- ✅ Pénuries : les plus vulnérables (enfants, anciens) d'abord, causes de décès précises, écran de fin lisible
+- ✅ Chocs d'usure plus fréquents (début de partie moins calme)
+- ⬜ Vérifier les performances sur une vraie machine (objectif : 60 FPS, 200 PNJ, ×5) (§32) — à faire de ton côté
+
+**Mesures d'équilibrage** (10 graines × 60 jours) :
+
+| Joueur | Survie médiane | Parties complètes | Stabilité min. moyenne | Morts moyens |
+|---|---|---|---|---|
+| Passif | 34 j | 0/10 | 2 | 343 |
+| Automatique naïf | 60 j | 9/10 | 46 | 2 |
+
+Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légitimité s'érode lentement
+(68 → 44 au jour 90) si l'on ne fait que gérer techniquement. Il faut donc aussi gouverner
+(élections, promesses tenues, vérité, concessions) — c'est voulu.
+
+### Étape 2 — Cœur systémique
+- ⬜ Justice complète : arrestation → détention → procès → verdict → appel (§150, §169–171)
+- ⬜ Rumeurs propagées dans le graphe social, vraies ou fausses, traçables par la DSI (§112–114)
+- ⬜ Factions émergentes et insurrection organisée par étapes, signaux précurseurs (§126–127, §134)
+- ⬜ Conseil du silo / cellule de crise : avis, désaccords, alliances (§162–163, §187, §191–192)
+
+### Étape 3 — Échelles de lecture & contenu
+- ⬜ Vue Salle (postes, machines, opérateurs) (§5)
+- ⬜ Vue Personne : suivre un habitant dans sa journée (§5)
+- ⬜ Plus d'étages (30+), nouveaux types de salles, 30–50 événements de plus (§30)
+
+### Étape 4 — Jeu complet
+- ⬜ Progression sur plusieurs années : vieillissement, générations, mémoire collective (§116)
+- ⬜ Fins possibles et conditions de victoire
+- ⬜ Modes de difficulté (§198)
+- ⬜ Son et ambiance (silence de la génératrice, alarmes) (§70)
+- ⬜ Déploiement en ligne
+
+---
+
+## Couverture du document de conception
+
+| § | Sujet | État | Notes |
+|---|---|---|---|
+| 1–3 | Vision, piliers, boucle | ✅ | Le silo vit sans le joueur ; décisions à coût/risque |
+| 2.4 | Paliers de réponse (pas de « dernier recours ») | 🟡 | La plupart des crises ont 3–4 options ; à systématiser |
+| 4 | Structure du silo par étages | ✅ | 12 étages |
+| 5 | Vues Silo / Étage / Salle / Personne | 🟡 | Silo + fiche étage + fiche habitant ; vue Salle à faire |
+| 6 | Population simulée vs PNJ visibles | ✅ | 75–400 PNJ selon réglage |
+| 7 | Animations et petits événements visuels | 🟡 | marche, escaliers, travail, porter, réparer, assis, discuter, bulles, étincelles ; manque manger/dormir visibles, files |
+| 8 | Routines quotidiennes | ✅ | Présence par heure et par étage |
+| 9 | Temps et vitesses | ✅ | |
+| 10–11 | Ressources, production/consommation, dépendances | ✅ | eau, nourriture, énergie, fer, pièces, médicaments |
+| 12 | Événements data-driven | ✅ | `src/sim/data/events.ts` |
+| 13 | Conséquences différées, tags | ✅ | |
+| 14 | Information imparfaite | ✅ | stocks déclarés/réels, capteurs, responsables qui minimisent |
+| 15 | Responsables de département | ✅ | 9 fonctions, avis dans les décisions |
+| 16 | Groupes sociaux | 🟡 | Secteurs avec cohésion ; groupes transverses à faire |
+| 17–19 | Stack, architecture, managers | ✅ | Systèmes au lieu de classes Manager |
+| 20 | Pathfinding A* | ✅ | Graphe des paliers |
+| 21 | Sprite sheets / atlas | ✅ | Atlas procédural unique |
+| 22 | Culling des étages | ✅ | |
+| 23 | Pixel perfect | ✅ | nearest-neighbor |
+| 24–26 | Réglages graphiques, dégradation adaptative, LOD | 🟡 | Densité, effets, éclairage, adaptatif ; LOD par distance non fait |
+| 27 | Pooling | ✅ | 400 PNJ réutilisés |
+| 28 | Sauvegarde IndexedDB | ✅ | Auto chaque jour ; cloud (phase 2) non fait |
+| 34–36 | UX : hiérarchie des alertes, regroupement, anticipation | 🟡 | Sévérités + risque estimé ; regroupement d'alertes à faire |
+| 37 | Crises explicables | ✅ | Chaîne causale par incident |
+| 41–42 | Habitants clés, fonctions institutionnelles | ✅ | |
+| 43 | Compétences, traits, adéquation au poste | 🟡 | Compétence/leadership/intégrité/traits ; adéquation fine à faire |
+| 44 | Élections, nominations, successions | ✅ | Intérim automatique |
+| 45 | Mort/disparition d'un habitant clé | ✅ | Perte d'expertise, vacance, impact social, mémoire |
+| 46–48 | Familles, communautés, graphe social, propagation | ✅ | |
+| 49 | Légitimité et perception | 🟡 | Légitimité perçue des arrestations/morts ; vérité vs croyance à approfondir (rumeurs) |
+| 43–44 bis | Shérif et adjoints | 🟡 | Adjoints = habitants ; affectation par étage à faire |
+| 45 bis | Responsables d'étage | ✅ | Fiabilité des rapports |
+| 47 bis | Secteur mécanique | ✅ | |
+| 48–52 bis | Fournitures, stocks, vols, écarts d'inventaire | 🟡 | Stock global ; stocks physiques par étage et transactions à faire |
+| 53–58 | Mines, risque, accidents, chaîne fer → pièces | ✅ | |
+| 65 | Nettoyage et salubrité | ✅ | |
+| 66–75 | Génératrice, énergie de secours, peur, communication de crise | ✅ | |
+| 80–99 | Blocus d'étage | 🟡 | 3 niveaux, navigation, coûts, contrebande ; réouverture par étapes et exceptions fines à faire |
+| 100–111 | Variables psychologiques, confiance par institution, leaders informels | 🟡 | Confiance admin + sécurité ; confiance par institution à étendre |
+| 112–115 | Rumeurs, communication officielle | 🟡 | Communication faite ; rumeurs = étape 2 |
+| 116–122 | Mémoire collective/individuelle, griefs, promesses | 🟡 | Mémoires et promesses ; griefs typés à faire |
+| 123–129 | Protestation → insurrection, réponses | 🟡 | Paliers 0–5 ; organisation/leaders = étape 2 |
+| 130–133 | Micro-management, élections, responsabilité perçue | 🟡 | |
+| 134 | Factions | ⬜ | Étape 2 |
+| 135–138 | Performance sociale, promotion dynamique | ✅ | Tick social horaire, propagation bornée, agitateurs promus |
+| 146–199 | Gouvernance : institutions, conseil, lois, précédents, urgence, corruption, audits, transparence | 🟡 | Pouvoirs d'urgence, audits, transparence, délestage, quotas ; conseil, lois modifiables, précédents, matrice des pouvoirs à faire |
+| 200 | Cycle politique, justice, progression, fins, secrets | ⬜ | Étapes 2–4 |
+
+---
+
+## Journal des livraisons
+
+- **Étape 0** — socle jouable : simulation, rendu, UI, assets, tests headless.
+- **Étape 1** — intro du Pacte (2 images générées : livre fermé, livre ouvert créé à partir du fermé), tutoriel guidé, mode debug, banc d'équilibrage, ajustements.
