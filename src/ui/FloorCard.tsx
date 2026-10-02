@@ -37,7 +37,20 @@ export function FloorCard() {
         </button>
       </header>
       <RoomThumb room={f.left} height={74} />
-      <p className="small muted">{DESCRIPTIONS[f.sector]}</p>
+      <p className="small muted">
+        {f.cafeteria === 'main'
+          ? 'Le grand réfectoire. Sur l’écran géant, la surface telle que la voient les capteurs : morte, mais visible. Tout le silo vient y regarder.'
+          : f.cafeteria === 'relay'
+            ? 'Réfectoire des étages profonds. Un écran relais retransmet la vue des capteurs extérieurs.'
+            : DESCRIPTIONS[f.sector]}
+      </p>
+      {f.cafeteria && (
+        <div className="meter">
+          <span className="muted">Netteté écran</span>
+          <Bar value={s.lens * 100} />
+          <span>{Math.round(s.lens * 100)}%</span>
+        </div>
+      )}
       <div className="grid2">
         <div className="kv">
           <span className="muted">Présents</span>

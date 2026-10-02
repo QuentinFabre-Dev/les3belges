@@ -69,7 +69,7 @@ export function updateEfficiency(ctx: Ctx) {
 }
 
 function workFloorOf(s: SectorId) {
-  return FLOORS.find((f) => f.sector === s)?.id ?? 'f05';
+  return FLOORS.find((f) => f.sector === s)?.id ?? 'res_mid';
 }
 
 function move(stock: ResourceStock, delta: number) {
@@ -96,8 +96,8 @@ export function energyStep(ctx: Ctx) {
     const def = FLOORS[f.index];
     let d = def.basePower * (night && f.sector !== 'water' && f.sector !== 'medical' ? 0.72 : 1);
     if (f.lockdown === 'full') d *= 0.7;
-    if (f.id === 'f04' && hasTag(w, 'agri_boost')) d += 45;
-    if (f.id === 'f12') d *= w.policies.mineQuota;
+    if (f.id === 'agriculture' && hasTag(w, 'agri_boost')) d += 45;
+    if (f.id === 'mines') d *= w.policies.mineQuota;
     return d;
   });
   const demand = demands.reduce((a, b) => a + b, 0);
@@ -138,25 +138,25 @@ export function resourceStep(ctx: Ctx) {
   const restrict = hasTag(w, 'water_restrictions') ? 0.78 : 1;
   const pump = w.assets.pump_main;
   const pumpFactor = pump.state === 'failed' ? 0.22 : assetFactor(pump);
-  const waterProd = 2250 * Math.min(1.1, w.sectors.water.efficiency) * pumpFactor * (0.6 + 0.4 * assetFactor(w.assets.water_filters)) * (0.25 + 0.75 * f('f08').power);
+  const waterProd = 2250 * Math.min(1.1, w.sectors.water.efficiency) * pumpFactor * (0.6 + 0.4 * assetFactor(w.assets.water_filters)) * (0.25 + 0.75 * f('water').power);
   const agriWater = hasTag(w, 'irrigation_cut') ? 120 : 360;
   const waterUse = ctx.population * 1.0 * restrict + agriWater + 110;
   deltas.water = move(r.water, (waterProd - waterUse) / day);
   const waterOk = r.water.real > 50 ? 1 : clamp(waterProd / waterUse, 0, 1);
   ctx.waterSupplyRatio = clamp(waterProd / waterUse, 0, 1);
-  for (const fl of w.floors) fl.water = fl.id === 'f04' && hasTag(w, 'irrigation_cut') ? 0.5 * waterOk : waterOk;
+  for (const fl of w.floors) fl.water = fl.id === 'agriculture' && hasTag(w, 'irrigation_cut') ? 0.5 * waterOk : waterOk;
 
   // Nourriture
   const boost = hasTag(w, 'agri_boost') ? 1.2 : 1;
-  const foodProd = 1560 * w.sectors.agriculture.efficiency * assetFactor(w.assets.hydro_array) * (0.2 + 0.8 * f('f04').water) * (0.25 + 0.75 * f('f04').power) * boost;
+  const foodProd = 1560 * w.sectors.agriculture.efficiency * assetFactor(w.assets.hydro_array) * (0.2 + 0.8 * f('agriculture').water) * (0.25 + 0.75 * f('agriculture').power) * boost;
   const foodUse = (ctx.adults + ctx.children * 0.7) * rationFactor(w);
   deltas.food = move(r.food, (foodProd - foodUse) / day);
 
   // Mines -> fer
   const minesEff = w.sectors.mines.efficiency * w.policies.mineQuota * assetFactor(w.assets.mine_drill);
-  const ore = 2.8 * (w.sectors.mines.staffingTarget || 1) * minesEff * (0.3 + 0.7 * f('f12').power);
+  const ore = 2.8 * (w.sectors.mines.staffingTarget || 1) * minesEff * (0.3 + 0.7 * f('mines').power);
   // Ateliers -> pièces
-  const partsWanted = 15 * w.sectors.mechanical.efficiency * assetFactor(w.assets.forge) * (0.3 + 0.7 * f('f07').power);
+  const partsWanted = 15 * w.sectors.mechanical.efficiency * assetFactor(w.assets.forge) * (0.3 + 0.7 * f('mechanical').power);
   const partsMade = r.materials.real > 30 ? partsWanted : partsWanted * 0.15;
   deltas.materials = move(r.materials, (ore - partsMade * 3 - 190) / day);
   deltas.parts = move(r.parts, partsMade / day);

@@ -14,23 +14,29 @@ export interface FloorDef {
   right: RoomTexture;
   capacity: number; // places résidentielles
   basePower: number; // demande énergétique (kW)
+  cafeteria?: 'main' | 'relay'; // réfectoire : 'main' = grand écran sur l'extérieur, 'relay' = écran relais
 }
 
-// Le silo du MVP : 12 étages, du haut vers le bas.
+// Le silo : 14 étages, du haut vers le bas. Une cafétéria environ tous les 8 étages
+// (on visera une tous les 10 étages quand le silo s'agrandira).
 export const FLOORS: FloorDef[] = [
-  { id: 'f01', label: '-01', name: 'Administration', sector: 'admin', left: 'admin', right: 'servers', capacity: 60, basePower: 40 },
-  { id: 'f02', label: '-02', name: 'Sécurité', sector: 'security', left: 'security', right: 'security', capacity: 60, basePower: 20 },
-  { id: 'f03', label: '-03', name: 'Cantine haute', sector: 'residential', left: 'canteen', right: 'residential', capacity: 190, basePower: 25 },
-  { id: 'f04', label: '-04', name: 'Agriculture', sector: 'agriculture', left: 'hydroponics', right: 'hydroponics', capacity: 70, basePower: 70 },
-  { id: 'f05', label: '-05', name: 'Résidentiel', sector: 'residential', left: 'residential', right: 'residential', capacity: 300, basePower: 30 },
-  { id: 'f06', label: '-06', name: 'Médical', sector: 'medical', left: 'medical', right: 'medical', capacity: 60, basePower: 35 },
-  { id: 'f07', label: '-07', name: 'Mécanique', sector: 'mechanical', left: 'workshop', right: 'workshop', capacity: 90, basePower: 45 },
-  { id: 'f08', label: '-08', name: 'Eau', sector: 'water', left: 'water', right: 'water', capacity: 50, basePower: 55 },
-  { id: 'f09', label: '-09', name: 'Énergie', sector: 'energy', left: 'generator', right: 'generator', capacity: 50, basePower: 15 },
-  { id: 'f10', label: '-10', name: 'Fournitures', sector: 'supplies', left: 'depot', right: 'depot', capacity: 70, basePower: 15 },
-  { id: 'f11', label: '-11', name: 'Résidentiel bas', sector: 'residential', left: 'residential', right: 'canteen', capacity: 280, basePower: 25 },
-  { id: 'f12', label: '-12', name: 'Mines', sector: 'mines', left: 'mine', right: 'mine', capacity: 60, basePower: 40 },
+  { id: 'cafeteria', label: '-01', name: 'Grand réfectoire', sector: 'residential', left: 'cafe_main', right: 'cafe_main', capacity: 40, basePower: 30, cafeteria: 'main' },
+  { id: 'admin', label: '-02', name: 'Administration', sector: 'admin', left: 'admin', right: 'servers', capacity: 50, basePower: 40 },
+  { id: 'security', label: '-03', name: 'Sécurité', sector: 'security', left: 'security', right: 'security', capacity: 50, basePower: 20 },
+  { id: 'res_high', label: '-04', name: 'Résidentiel haut', sector: 'residential', left: 'residential', right: 'residential', capacity: 260, basePower: 25 },
+  { id: 'agriculture', label: '-05', name: 'Agriculture', sector: 'agriculture', left: 'hydroponics', right: 'hydroponics', capacity: 60, basePower: 70 },
+  { id: 'res_mid', label: '-06', name: 'Résidentiel', sector: 'residential', left: 'residential', right: 'residential', capacity: 280, basePower: 30 },
+  { id: 'medical', label: '-07', name: 'Médical', sector: 'medical', left: 'medical', right: 'medical', capacity: 50, basePower: 35 },
+  { id: 'mechanical', label: '-08', name: 'Mécanique', sector: 'mechanical', left: 'workshop', right: 'workshop', capacity: 80, basePower: 45 },
+  { id: 'cafeteria_mid', label: '-09', name: 'Cafétéria des profondeurs', sector: 'residential', left: 'cafe_mid', right: 'residential', capacity: 150, basePower: 25, cafeteria: 'relay' },
+  { id: 'water', label: '-10', name: 'Eau', sector: 'water', left: 'water', right: 'water', capacity: 40, basePower: 55 },
+  { id: 'energy', label: '-11', name: 'Énergie', sector: 'energy', left: 'generator', right: 'generator', capacity: 40, basePower: 15 },
+  { id: 'supplies', label: '-12', name: 'Fournitures', sector: 'supplies', left: 'depot', right: 'depot', capacity: 60, basePower: 15 },
+  { id: 'res_low', label: '-13', name: 'Résidentiel bas', sector: 'residential', left: 'residential', right: 'canteen', capacity: 300, basePower: 25 },
+  { id: 'mines', label: '-14', name: 'Mines', sector: 'mines', left: 'mine', right: 'mine', capacity: 50, basePower: 40 },
 ];
+
+export const CAFETERIAS = FLOORS.filter((f) => f.cafeteria).map((f) => f.id);
 
 export const SECTOR_NAMES: Record<SectorId, string> = {
   admin: 'Administration & DSI',
@@ -76,17 +82,17 @@ export const COHESION: Record<SectorId, number> = {
 };
 
 export const SECTOR_FLOOR: Record<SectorId, string> = {
-  admin: 'f01',
-  security: 'f02',
-  agriculture: 'f04',
-  medical: 'f06',
-  mechanical: 'f07',
-  water: 'f08',
-  energy: 'f09',
-  supplies: 'f10',
-  mines: 'f12',
-  sanitation: 'f11',
-  residential: 'f05',
+  admin: 'admin',
+  security: 'security',
+  agriculture: 'agriculture',
+  medical: 'medical',
+  mechanical: 'mechanical',
+  water: 'water',
+  energy: 'energy',
+  supplies: 'supplies',
+  mines: 'mines',
+  sanitation: 'res_low',
+  residential: 'res_mid',
 };
 
 export interface OfficeDef {

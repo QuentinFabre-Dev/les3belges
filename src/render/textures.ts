@@ -180,3 +180,22 @@ export function alertBubbleCanvas() {
   ctx.fillRect(4, 4 - 0, 1, 1);
   return c;
 }
+
+// Saleté des capteurs extérieurs : taches de poussière brune.
+export function grimeCanvas() {
+  const { c, ctx } = canvas(64, 32);
+  for (let i = 0; i < 70; i++) {
+    const x = hash(i, 1) * 64;
+    const y = hash(1, i) * 32;
+    const r = 1 + hash(i, i) * 5;
+    ctx.fillStyle = `rgba(${90 + Math.floor(hash(i, 7) * 40)},${70 + Math.floor(hash(7, i) * 25)},${45},${0.35 + hash(i, 3) * 0.5})`;
+    ctx.fillRect(Math.round(x - r), Math.round(y - r / 2), Math.round(r * 2), Math.round(r));
+  }
+  return c;
+}
+
+// Zones d'écran dans les textures de salle (coordonnées de la salle 256×104).
+export const SCREENS: Record<string, { x: number; y: number; w: number; h: number }> = {
+  cafe_main: { x: 42, y: 22, w: 176, h: 39 },
+  cafe_mid: { x: 112, y: 25, w: 46, h: 26 },
+};

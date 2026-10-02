@@ -48,15 +48,15 @@ const STEPS: Step[] = [
   },
   {
     title: 'Inspecter un étage',
-    text: 'Cliquez sur l’étage -08 Eau dans le silo (la station de pompage). Il est centré pour vous.',
+    text: 'Cliquez sur l’étage -10 Eau dans le silo (la station de pompage). Il est centré pour vous.',
     target: '.stage',
     place: 'inside',
     enter: () => {
       useGame.getState().selectFloor(undefined);
-      useGame.setState({ focusRequest: { floor: 'f08', n: Date.now() } });
+      useGame.setState({ focusRequest: { floor: 'water', n: Date.now() } });
     },
-    done: (c) => c.floor === 'f08',
-    hint: 'Cliquez sur l’étage -08 pour continuer',
+    done: (c) => c.floor === 'water',
+    hint: 'Cliquez sur l’étage -10 pour continuer',
   },
   {
     title: 'La fiche d’étage',
@@ -69,7 +69,7 @@ const STEPS: Step[] = [
     text: 'La pompe principale fuit. Lisez la description et les avis des responsables : ils ne sont pas d’accord. Chaque choix a un coût, un risque et parfois une conséquence différée. Tranchez.',
     target: '.right .decision',
     place: 'left',
-    enter: () => send({ type: 'SPAWN_EVENT', eventId: 'water_leak', floor: 'f08', assetId: 'pump_main' }),
+    enter: () => send({ type: 'SPAWN_EVENT', eventId: 'water_leak', floor: 'water', assetId: 'pump_main' }),
     done: (c) => Date.now() - c.enteredAt > 1500 && !!c.s && !c.s.decisions.some((d) => d.title.startsWith('Fuite')),
     hint: 'Choisissez une option pour continuer',
   },

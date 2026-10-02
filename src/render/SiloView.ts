@@ -10,8 +10,10 @@ import {
   ROOM_W,
   SHAFT_W,
   SHAFT_X,
+  SCREENS,
   SILO_W,
   WALL_W,
+  grimeCanvas,
   alertBubbleCanvas,
   bubbleCanvas,
   rockCanvas,
@@ -28,7 +30,7 @@ export interface RenderSettings {
 }
 
 const SURFACE_H = 300;
-const ROOM_TEXTURES = ['admin', 'servers', 'security', 'canteen', 'residential', 'hydroponics', 'medical', 'workshop', 'water', 'generator', 'depot', 'mine'];
+const ROOM_TEXTURES = ['admin', 'servers', 'security', 'canteen', 'residential', 'hydroponics', 'medical', 'workshop', 'water', 'generator', 'depot', 'mine', 'cafe_main', 'cafe_mid', 'cafe_main_screen', 'cafe_mid_screen'];
 const WORK_FLOORS_24H = new Set<SectorId>(['water', 'energy', 'medical', 'security']);
 
 type Mode = 'idle' | 'walk' | 'act' | 'stairs';
@@ -91,6 +93,7 @@ export class SiloView {
   private bubbleTex!: Texture;
   private alertTex!: Texture;
   private sparks: { sp: Sprite; vx: number; vy: number; life: number }[] = [];
+  private screens: { floor: number; feed: TilingSprite; grime: Sprite; noise: Sprite; base: number }[] = [];
   private elevator = new Graphics();
   private elevatorY = 0;
   private elevatorTarget = 0;
@@ -215,7 +218,18 @@ export class SiloView {
       const lock = new Graphics();
       const highlight = new Graphics().rect(-2, -2, SILO_W + 4, ROOM_H + 4).stroke({ color: 0xe8a33c, width: 2, alpha: 0.9 });
       highlight.visible = false;
-      root.addChild(left, right, shaft, slabL, slabR, wl, wr, dark, red, lock, highlight);
+      root.addChild(left, right, shaft, slabL, slabR, wl, wr);
+      // Écrans des réfectoires : la vue de la surface, en direct, à travers des capteurs plus ou moins sales.
+      const wings: [string, number, boolean][] = [
+        [f.left, 0, false],
+        [f.right, SHAFT_X + SHAFT_W, f.left === f.right],
+      ];
+      for (const [tex, wx, mirrored] of wings) {
+        const rect = SCREENS[tex];
+        if (!rect) continue;
+        root.addChild(this.buildScreen(tex, rect, wx, mirrored, f.index));
+      }
+      root.addChild(dark, red, lock, highlight);
       this.floorLayer.addChild(root);
 
       const label = new Text({ text: f.label, style: { fontFamily: 'Rajdhani, sans-serif', fontSize: 22, fontWeight: '700', fill: 0xd8dde3 } });
@@ -257,6 +271,40 @@ export class SiloView {
 
     this.fit();
     this.camY = -SURFACE_H * 0.55;
+  }
+
+  private buildScreen(tex: string, rect: { x: number; y: number; w: number; h: number }, wx: number, mirrored: boolean, floor: number) {
+    const base = import.meta.env.BASE_URL;
+    const holder = new Container();
+    holder.x = mirrored ? wx + ROOM_W : wx;
+    holder.scale.x = mirrored ? -1 : 1;
+    const surface = Texture.from(`${base}assets/surface.png`);
+    const feed = new TilingSprite({ texture: surface, width: rect.w, height: rect.h });
+    feed.position.set(rect.x, rect.y);
+    const scale = (rect.h * 1.35) / surface.height;
+    feed.tileScale.set(scale);
+    feed.tilePosition.y = -surface.height * scale * 0.18;
+    feed.tint = 0xb8b0a8;
+    const grime = new Sprite(Texture.from(grimeCanvas()));
+    grime.position.set(rect.x, rect.y);
+    grime.width = rect.w;
+    grime.height = rect.h;
+    const noise = new Sprite(Texture.WHITE);
+    noise.position.set(rect.x, rect.y);
+    noise.width = rect.w;
+    noise.height = rect.h;
+    noise.tint = 0x9fb0a0;
+    noise.alpha = 0;
+    const mask = new Sprite(Texture.from(`${base}assets/rooms/${tex}_screen.png`));
+    const content = new Container();
+    content.addChild(feed, grime, noise);
+    content.mask = mask;
+    holder.addChild(content, mask);
+    // Point de départ de la vue : la ville en ruine à l'horizon.
+    const start = -surface.width * scale * 0.62;
+    feed.tilePosition.x = start;
+    this.screens.push({ floor, feed, grime, noise, base: start });
+    return holder;
   }
 
   // -------------------------------------------------------------------------
@@ -456,6 +504,18 @@ export class SiloView {
       if (g.lockdown !== 'open') g.lock.alpha = 0.75 + 0.25 * Math.sin(time * 4);
     }
 
+    // Écrans : lente dérive de la caméra extérieure, saleté, parasites, coupure.
+    const screensOff = s.tags.includes('screens_off');
+    for (const sc of this.screens) {
+      const f = s.floors[sc.floor];
+      const off = screensOff || f.power < 0.25;
+      sc.feed.visible = sc.grime.visible = !off;
+      if (off) continue;
+      sc.feed.tilePosition.x = sc.base + Math.sin(time * 0.05 + sc.floor) * 40;
+      sc.grime.alpha = Math.min(0.92, (1 - s.lens) * 1.1);
+      sc.feed.alpha = 0.55 + s.lens * 0.45;
+      sc.noise.alpha = secondary && Math.random() < 0.03 ? 0.08 + Math.random() * 0.12 : Math.max(0, sc.noise.alpha - dt);
+    }
     this.updateElevator(dt, v0, v1);
     this.reconcileT -= dt;
     if (this.reconcileT <= 0) {
@@ -705,7 +765,7 @@ export class SiloView {
     }
     const working = (h >= 7 && h < 12) || (h >= 13 && h < (s.policies.extendedHours ? 20 : 17));
     const meal = h === 12 || (h >= 18 && h < 20);
-    const canteen = f.left === 'canteen' || f.right === 'canteen';
+    const canteen = !!f.cafeteria || f.left === 'canteen' || f.right === 'canteen';
     if (meal && canteen && r < 0.65) {
       n.mode = 'act';
       n.act = 'sit';

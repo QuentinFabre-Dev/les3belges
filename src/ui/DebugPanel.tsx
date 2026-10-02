@@ -15,7 +15,7 @@ export function DebugPanel() {
       <button className="btn small" onClick={() => send({ type: 'DEBUG', action: 'accident' })}>
         Accident minier
       </button>
-      <button className="btn small" onClick={() => send({ type: 'DEBUG', action: 'unrest', target: 'f05' })}>
+      <button className="btn small" onClick={() => send({ type: 'DEBUG', action: 'unrest', target: 'res_mid' })}>
         Colère -05
       </button>
       <button className="btn small" onClick={() => ev('wants_out')}>

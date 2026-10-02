@@ -2,6 +2,7 @@ import { TICKS_PER_DAY } from '../data/world';
 import { clamp } from '../rng';
 import type { Ctx } from '../context';
 import type { Citizen, CitizenId, FloorState, Trait, UnrestLevel, WorldState } from '../types';
+import { CAFETERIAS, FLOORS } from '../data/world';
 import { avg, dayOf, fullName, hasTag, holder, hourOf, journal, message, openIncident, resolveIncidents } from '../util';
 import { schedule } from './infrastructure';
 
@@ -53,6 +54,7 @@ export function populationHour(ctx: Ctx) {
     if (thirsty) moraleTarget -= 30 * (1 - waterShare) + 8;
     if (c.flags.includes('rewarded')) moraleTarget += 8;
     moraleTarget -= c.grievance * 0.15;
+    moraleTarget -= hasTag(w, 'screens_off') ? 4 : (1 - w.lens) * 9; // un écran sale assombrit tout le silo
     moraleTarget -= home.residents > home.capacity ? 6 : 0;
     c.morale += (moraleTarget - c.morale) * 0.05;
 
@@ -121,7 +123,7 @@ export function sanitationHour(ctx: Ctx) {
   for (const f of w.floors) {
     const p = ctx.presence[f.id]?.present ?? 0;
     let produced = p * 0.0035;
-    if (f.left === 'canteen' || f.right === 'canteen') produced *= hour >= 11 && hour <= 13 ? 2.4 : 1.2;
+    if (f.cafeteria || f.left === 'canteen' || f.right === 'canteen') produced *= hour >= 11 && hour <= 13 ? 2.4 : 1.2;
     if (f.sector === 'mines' || f.sector === 'mechanical') produced *= 1.4;
     if (f.water < 0.5 || f.power < 0.5) produced *= 1.5; // évacuations dégradées
     if (f.unrest >= 4) produced *= 2;
@@ -144,7 +146,21 @@ export function computePresence(ctx: Ctx) {
   const h = hourOf(w);
   const presence: Ctx['presence'] = {};
   for (const f of w.floors) presence[f.id] = { present: 0, work: 0, walk: 0, eat: 0, sleep: 0, leisure: 0 };
-  const canteenFor = (c: Citizen) => (c.homeFloor <= 'f05' ? 'f03' : 'f11');
+  // Chacun mange au réfectoire le plus proche de chez lui.
+  const index = new Map(FLOORS.map((f, i) => [f.id, i]));
+  const cafIdx = CAFETERIAS.map((id) => index.get(id)!);
+  const canteenFor = (c: Citizen) => {
+    const h = index.get(c.homeFloor) ?? 0;
+    let best = CAFETERIAS[0];
+    let d = Infinity;
+    cafIdx.forEach((ci, k) => {
+      if (Math.abs(ci - h) < d) {
+        d = Math.abs(ci - h);
+        best = CAFETERIAS[k];
+      }
+    });
+    return best;
+  };
   const extended = w.policies.extendedHours;
   for (const c of w.citizens) {
     if (c.lifeState !== 'alive') continue;
@@ -158,14 +174,14 @@ export function computePresence(ctx: Ctx) {
       act = 'eat';
     } else if ((h >= 7 && h < 12) || (h >= 13 && h < (extended ? 20 : 17))) {
       if (working) {
-        floor = c.sector === 'sanitation' ? ['f03', 'f05', 'f11', 'f07', 'f12', 'f04'][c.id % 6] : c.workFloor;
+        floor = c.sector === 'sanitation' ? ['cafeteria', 'cafeteria_mid', 'res_high', 'res_mid', 'res_low', 'mechanical', 'mines', 'agriculture'][c.id % 8] : c.workFloor;
         act = 'work';
       } else act = c.age < 16 ? 'leisure' : 'leisure';
     } else if (h >= 18 && h < 20 && c.id % 3 === 0) {
       floor = canteenFor(c);
       act = 'leisure';
     }
-    if (c.flags.includes('injured') || c.health < 35) floor = 'f06';
+    if (c.flags.includes('injured') || c.health < 35) floor = 'medical';
     const p = presence[floor];
     if (!p) continue;
     p.present++;
@@ -204,7 +220,7 @@ export function socialHour(ctx: Ctx) {
     f.trust = avg(list.map((c) => c.trust));
     const leader = list.filter((c) => c.flags.includes('informal_leader') || c.flags.includes('agitator')).reduce((m, c) => Math.max(m, c.influence), 0);
     const cohesion = w.sectors[f.sector]?.cohesion ?? 0.5;
-    const security = w.floors.find((x) => x.id === 'f02')!;
+    const security = w.floors.find((x) => x.id === 'security')!;
     const patrol = f.lockdown === 'full' ? 14 : f.lockdown === 'controlled' ? 7 : 0;
     const pressure = f.anger * 0.3 + f.grievance * 0.3 + f.fear * 0.1 + cohesion * 12 + leader * 0.12 - f.trust * 0.22 - patrol - (security.power > 0.5 ? 2 : 0);
     f.unrestPressure = pressure;

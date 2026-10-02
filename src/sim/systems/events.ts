@@ -82,6 +82,10 @@ export function metric(ctx: Ctx, key: string): number | string {
       return dayOf(w);
     case 'stability':
       return w.stability;
+    case 'lens':
+      return w.lens;
+    case 'prisoners':
+      return w.citizens.filter((c) => c.lifeState === 'imprisoned').length;
   }
   return 0;
 }
@@ -225,6 +229,7 @@ export function interpolate(ctx: Ctx, text: string, p: { floor?: string; assetId
     if (key === 'supportsPct') return String(Math.round(w.assets.mine_supports.condition * 100));
     if (key === 'population') return String(ctx.population);
     if (key === 'capacity') return String(w.floors.reduce((a, f) => a + f.capacity, 0));
+    if (key === 'lensPct') return String(Math.round(w.lens * 100));
     if (key === 'accuracy') return String(Math.round(ctx.infoAccuracy * 100));
     if (p.vars && key in p.vars) return String(p.vars[key]);
     return '';
@@ -266,6 +271,10 @@ function citizenBySelector(ctx: Ctx, sel: string, p: DecisionContext): Citizen |
   if (sel.startsWith('office:')) return holder(w, sel.slice(7) as OfficeId);
   if (sel.startsWith('random_worker:')) {
     const pool = w.citizens.filter((c) => c.lifeState === 'alive' && c.sector === sel.slice(14) && !c.officeId);
+    return pool.length ? rng.pick(pool) : undefined;
+  }
+  if (sel === 'prisoner') {
+    const pool = w.citizens.filter((c) => c.lifeState === 'imprisoned');
     return pool.length ? rng.pick(pool) : undefined;
   }
   if (sel.startsWith('random_resident:')) {
@@ -442,6 +451,9 @@ export function applyEffects(ctx: Ctx, effects: Effect[], p: DecisionContext) {
       case 'start_election':
         startElection(ctx, e.officeId);
         break;
+      case 'clean_lens':
+        cleanLens(ctx);
+        break;
     }
   }
 }
@@ -569,6 +581,19 @@ export function appoint(ctx: Ctx, officeId: OfficeId, citizenId: number) {
   for (const m of w.citizens) if (m.lifeState === 'alive' && m.sector === office.sector) m.morale = clamp(m.morale + delta);
   addTag(w, 'chief_replaced', 10);
   journal(w, `${office.title} : ${fullName(c)} nommé·e.`, 'info');
+}
+
+// Le nettoyage : celui qui sort nettoie les capteurs avant de mourir. Le monde redevient visible.
+export function cleanLens(ctx: Ctx) {
+  const { w } = ctx;
+  const before = w.lens;
+  w.lens = 1;
+  for (const c of w.citizens) {
+    if (c.lifeState !== 'alive') continue;
+    c.morale = clamp(c.morale + (1 - before) * 10);
+  }
+  journal(w, 'Le nettoyage a eu lieu. Dans les réfectoires, le monde extérieur est de nouveau net : mort, mais visible.', 'important', 'cafeteria');
+  w.memories.push({ tick: w.tick, type: 'cleaning', text: 'Nettoyage des capteurs', severity: 0.6, perceivedLegitimacy: 60 });
 }
 
 // ---------------------------------------------------------------------------

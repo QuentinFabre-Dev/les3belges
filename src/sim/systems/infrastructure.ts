@@ -187,7 +187,7 @@ export function minesHour(ctx: Ctx, kill: (id: number, cause: string, perceived:
     (0.6 + fatigue / 100) *
     (w.policies.extendedHours ? 1.3 : 1) *
     (chief ? 1.15 - chief.skill / 250 : 1.25) *
-    (floorById(w, 'f12')!.power < 0.6 ? 1.6 : 1);
+    (floorById(w, 'mines')!.power < 0.6 ? 1.6 : 1);
   if (!rng.chance(risk / 9 / 6)) return; // par tick, sur 9 h de poste
   const roll = rng.next();
   const causes: string[] = [];
@@ -204,7 +204,7 @@ export function minesHour(ctx: Ctx, kill: (id: number, cause: string, perceived:
       v.flags.push('injured');
       v.health = clamp(v.health - 45);
     }
-    openIncident(w, 'mine_accident', 'Accident minier : blessé grave', 'important', causes, 'f12');
+    openIncident(w, 'mine_accident', 'Accident minier : blessé grave', 'important', causes, 'mines');
     w.resources.medicine.real = Math.max(0, w.resources.medicine.real - 8);
     for (const c of miners) c.fear = clamp(c.fear + 6);
   } else {
@@ -220,8 +220,8 @@ export function minesHour(ctx: Ctx, kill: (id: number, cause: string, perceived:
         if (v.lifeState === 'alive' && v.id !== victim.id) kill(v.id, 'Effondrement de galerie', negligent ? 'negligence' : 'accident');
       }
     }
-    openIncident(w, 'mine_accident', collapse ? 'Effondrement dans les mines' : 'Accident mortel dans les mines', 'critical', causes, 'f12');
-    schedule(ctx, 'mine_accident', { floor: 'f12', subjectId: victim.id });
+    openIncident(w, 'mine_accident', collapse ? 'Effondrement dans les mines' : 'Accident mortel dans les mines', 'critical', causes, 'mines');
+    schedule(ctx, 'mine_accident', { floor: 'mines', subjectId: victim.id });
     if (negligent) w.tags['mine_negligence'] = w.tick + 144 * 30;
   }
 }

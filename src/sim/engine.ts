@@ -77,6 +77,7 @@ export class Engine {
   }
 
   load(world: WorldState) {
+    if (world.lens === undefined) world.lens = 0.8; // anciennes sauvegardes
     this.w = world;
     this.ctx = this.makeCtx();
     this.hourly();
@@ -135,6 +136,8 @@ export class Engine {
     const ctx = this.ctx;
     const w = this.w;
     supplyTheftDay(ctx);
+    // La poussière et les vents salissent les capteurs extérieurs.
+    w.lens = Math.max(0.05, w.lens - 0.012 - ctx.rng.next() * 0.01);
     reportsDay(ctx);
     pruneIncidents(w);
     // Naissances : rares, dépendent du moral général.
@@ -309,7 +312,7 @@ export class Engine {
       for (const k of ['food', 'water', 'parts', 'materials', 'medicine'] as const) r[k].declared = r[k].real;
       addTag(w, 'strike:supplies', 0.5);
       const chief = holder(w, 'supply_chief');
-      journal(w, `Audit des fournitures : ${lost > 0 ? lost + ' unités manquantes' : 'registres conformes'}.`, lost > 10 ? 'important' : 'info', 'f10');
+      journal(w, `Audit des fournitures : ${lost > 0 ? lost + ' unités manquantes' : 'registres conformes'}.`, lost > 10 ? 'important' : 'info', 'supplies');
       if (chief) chief.trust = clamp(chief.trust - 10);
       if (lost > 10) {
         const thief = w.citizens.find((c) => c.lifeState === 'alive' && c.flags.includes('thief'));
@@ -324,11 +327,11 @@ export class Engine {
       addTag(w, 'maintenance_audited', 5);
     } else if (target === 'mines') {
       const s = w.assets.mine_supports;
-      journal(w, `Audit des mines : étais ${Math.round(s.condition * 100)} %, foreuses ${Math.round(w.assets.mine_drill.condition * 100)} %, fatigue des mineurs élevée : ${w.sectors.mines.morale < 45 ? 'oui' : 'non'}.`, 'info', 'f12');
+      journal(w, `Audit des mines : étais ${Math.round(s.condition * 100)} %, foreuses ${Math.round(w.assets.mine_drill.condition * 100)} %, fatigue des mineurs élevée : ${w.sectors.mines.morale < 45 ? 'oui' : 'non'}.`, 'info', 'mines');
       for (const c of w.citizens) if (c.sector === 'mines' && c.lifeState === 'alive') c.trust = clamp(c.trust + 3);
     } else {
       const corrupt = w.citizens.filter((c) => c.lifeState === 'alive' && c.sector === 'security' && c.integrity < 35);
-      journal(w, `Audit de la sécurité : ${corrupt.length} adjoint(s) au comportement douteux.`, corrupt.length ? 'attention' : 'info', 'f02');
+      journal(w, `Audit de la sécurité : ${corrupt.length} adjoint(s) au comportement douteux.`, corrupt.length ? 'attention' : 'info', 'security');
       for (const c of corrupt) if (!c.flags.includes('suspect')) c.flags.push('suspect');
       for (const c of w.citizens) if (c.sector === 'security' && c.lifeState === 'alive') c.morale = clamp(c.morale - 4);
     }
@@ -428,7 +431,7 @@ export class Engine {
       }
       w.resources.battery = 100;
     } else if (action === 'unrest') {
-      const f = w.floors.find((x) => x.id === (target ?? 'f05'));
+      const f = w.floors.find((x) => x.id === (target ?? 'res_mid'));
       if (f) for (const c of w.citizens) if (c.lifeState === 'alive' && c.homeFloor === f.id) {
         c.anger = clamp(c.anger + 40);
         c.grievance = clamp(c.grievance + 35);
@@ -438,7 +441,7 @@ export class Engine {
       if (miner) {
         killCitizen(ctx, miner.id, 'Accident minier', 'negligence');
         ctx.scheduled.push('mine_accident');
-        ctx.scheduledCtx['mine_accident'] = { floor: 'f12', subjectId: miner.id };
+        ctx.scheduledCtx['mine_accident'] = { floor: 'mines', subjectId: miner.id };
       }
     }
     evaluateEvents(ctx);
@@ -589,6 +592,7 @@ export class Engine {
         sector: f.sector,
         left: f.left,
         right: f.right,
+        cafeteria: f.cafeteria,
         present: pr.present,
         residents: f.residents,
         workers: f.workers,
@@ -687,6 +691,7 @@ export class Engine {
       tags: Object.keys(w.tags).filter((t) => hasTag(w, t)),
       gameOver: w.gameOver,
       infoAccuracy: acc,
+      lens: w.lens,
     };
   }
 }

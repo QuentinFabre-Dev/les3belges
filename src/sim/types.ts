@@ -37,7 +37,9 @@ export type RoomTexture =
   | 'water'
   | 'generator'
   | 'depot'
-  | 'mine';
+  | 'mine'
+  | 'cafe_main'
+  | 'cafe_mid';
 
 export type Trait =
   | 'loyal'
@@ -113,6 +115,7 @@ export interface FloorState {
   sector: SectorId;
   left: RoomTexture;
   right: RoomTexture;
+  cafeteria?: 'main' | 'relay';
   capacity: number;
   condition: number; // 0-1
   power: number; // 0-1 disponibilité énergétique
@@ -328,6 +331,7 @@ export interface WorldState {
   election?: Election;
   psychology: { fear: number; morale: number; trust: number; legitimacy: number; authority: number };
   stability: number;
+  lens: number; // netteté des capteurs extérieurs (écran des réfectoires), 0-1
   history: HistoryPoint[];
   nextUid: number;
   gameOver?: { day: number; reason: string; chain: string[] };
@@ -380,7 +384,8 @@ export type Effect =
   | { type: 'memory'; memoryType: string; text: string; severity: number; legitimacy: number }
   | { type: 'reveal_stocks' }
   | { type: 'chance'; p: number; then: Effect[]; else?: Effect[] }
-  | { type: 'start_election'; officeId: OfficeId };
+  | { type: 'start_election'; officeId: OfficeId }
+  | { type: 'clean_lens' };
 
 export interface DecisionChoice {
   id: string;
@@ -469,6 +474,7 @@ export interface FloorView {
   sector: SectorId;
   left: RoomTexture;
   right: RoomTexture;
+  cafeteria?: 'main' | 'relay';
   present: number; // personnes présentes à cette heure
   residents: number;
   workers: number;
@@ -605,4 +611,5 @@ export interface Snapshot {
   tags: string[];
   gameOver?: { day: number; reason: string; chain: string[] };
   infoAccuracy: number;
+  lens: number;
 }

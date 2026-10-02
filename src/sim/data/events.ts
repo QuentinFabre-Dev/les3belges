@@ -16,7 +16,7 @@ export const EVENTS: EventDefinition[] = [
     chancePerDay: 0.55,
     cooldownDays: 6,
     expiresDays: 1.5,
-    context: { floorFrom: 'f08', assetFrom: 'pump_main' },
+    context: { floorFrom: 'water', assetFrom: 'pump_main' },
     advice: {
       mechanic_chief: 'Envoyez-moi une équipe maintenant, après ce sera une rupture.',
       supply_chief: 'Quinze pièces, c’est beaucoup avec nos stocks actuels.',
@@ -136,7 +136,7 @@ export const EVENTS: EventDefinition[] = [
     chancePerDay: 0.35,
     cooldownDays: 8,
     expiresDays: 2,
-    context: { floorFrom: 'f04' },
+    context: { floorFrom: 'agriculture' },
     advice: { agri_chief: 'Plus de lumière, et les plants repartent. Mais ça coûte de l’énergie.', supply_chief: 'Je peux vous prêter quinze manutentionnaires, pas plus.' },
     choices: [
       {
@@ -461,7 +461,7 @@ export const EVENTS: EventDefinition[] = [
     chancePerDay: 0.6,
     cooldownDays: 6,
     expiresDays: 2,
-    context: { floorFrom: 'f10' },
+    context: { floorFrom: 'supplies' },
     advice: { supply_chief: 'Une erreur de saisie, rien de plus. Un audit paralyserait le dépôt.', it_director: 'Les capteurs ne mentent pas. Les registres, si.', sheriff: 'Donnez-moi deux adjoints et je trouve qui sort du matériel.' },
     choices: [
       { id: 'audit', label: 'Lancer un audit complet', hint: 'Stocks réels révélés · dépôt ralenti 2 j', advisor: 'it_director', effects: [{ type: 'reveal_stocks' }, { type: 'tag', tag: 'strike:supplies', days: 1 }, { type: 'schedule', eventId: 'audit_findings', delayDays: 1 }] },
@@ -850,7 +850,7 @@ export const EVENTS: EventDefinition[] = [
     chancePerDay: 0.06,
     cooldownDays: 25,
     expiresDays: 2,
-    context: { floorFrom: 'f10', subjectFrom: 'thief' },
+    context: { floorFrom: 'supplies', subjectFrom: 'thief' },
     advice: { judge: 'La loi est la loi : confiscation et procès.', it_director: 'Laissez-moi l’étudier avant de le détruire.', sheriff: 'Moins il y a de témoins, mieux c’est.' },
     choices: [
       { id: 'confiscate', label: 'Confiscation et procès', hint: 'Légitimité judiciaire + · colère des ouvriers', advisor: 'judge', effects: [{ type: 'arrest', selector: 'subject', reason: 'Possession d’une relique', legitimacy: 60 }, { type: 'office_legitimacy', officeId: 'judge', amount: 4 }] },
@@ -889,9 +889,9 @@ export const EVENTS: EventDefinition[] = [
     expiresDays: 1,
     context: { subjectFrom: 'leader_of_max_grievance' },
     advice: { judge: 'Le Pacte ne laisse pas de choix. Le nettoyage doit avoir lieu.', medical_chief: 'C’est un appel au secours. Laissez-moi le soigner.', mayor: 'Un nettoyage maintenant, avec cette tension… le silo regardera.' },
-    onExpire: [{ type: 'kill', selector: 'subject', cause: 'Envoyé·e au nettoyage', perceived: 'legal' }],
+    onExpire: [{ type: 'kill', selector: 'subject', cause: 'Envoyé·e au nettoyage', perceived: 'legal' }, { type: 'clean_lens' }],
     choices: [
-      { id: 'cleaning', label: 'Appliquer le Pacte : nettoyage', hint: 'Légitimité judiciaire + · peur ++ · colère de ses proches', advisor: 'judge', effects: [{ type: 'kill', selector: 'subject', cause: 'Envoyé·e au nettoyage', perceived: 'legal' }, { type: 'floor', floor: 'all', field: 'cleanliness', amount: 3 }, { type: 'social', target: 'all', stat: 'fear', amount: 8 }] },
+      { id: 'cleaning', label: 'Appliquer le Pacte : nettoyage', hint: 'Légitimité judiciaire + · peur ++ · colère de ses proches', advisor: 'judge', effects: [{ type: 'kill', selector: 'subject', cause: 'Envoyé·e au nettoyage', perceived: 'legal' }, { type: 'clean_lens' }, { type: 'social', target: 'all', stat: 'fear', amount: 8 }] },
       { id: 'treat', label: 'Prise en charge médicale', hint: 'Pacte contourné · légitimité du juge −', advisor: 'medical_chief', effects: [{ type: 'tag', tag: 'judge_bypassed', days: 20 }, { type: 'office_legitimacy', officeId: 'judge', amount: -8 }, { type: 'social', target: 'household:subject', stat: 'trust', amount: 15 }] },
       { id: 'detain', label: 'Détention en attendant', hint: 'Décision repoussée · rumeurs', effects: [{ type: 'arrest', selector: 'subject', reason: 'A demandé à sortir', legitimacy: 55 }] },
     ],
@@ -911,6 +911,36 @@ export const EVENTS: EventDefinition[] = [
     choices: [
       { id: 'grant', label: 'Accorder 10 personnes', hint: 'Novices issus des sans-affectation', effects: [{ type: 'sector', sector: 'subject', field: 'staffingTarget', amount: 10 }, { type: 'social', target: 'sector:subject', stat: 'grievance', amount: -6 }, { type: 'social', target: 'sector:subject', stat: 'trust', amount: 4 }] },
       { id: 'refuse', label: 'Refuser', hint: 'Rancœur du secteur +', effects: [{ type: 'social', target: 'sector:subject', stat: 'grievance', amount: 5 }] },
+    ],
+  },
+  {
+    id: 'lens_dirty',
+    title: 'L’écran du réfectoire se voile',
+    severity: 'attention',
+    category: 'Réfectoire',
+    image: 'cafe_main',
+    description: 'La poussière recouvre les capteurs extérieurs : sur les écrans des réfectoires, le monde dehors n’est plus qu’une tache brune (netteté {lensPct} %). Les habitants mangent en silence. Certains murmurent qu’il faudrait un nettoyage.',
+    conditions: [{ metric: 'lens', op: '<', value: 0.42 }],
+    chancePerDay: 0.5,
+    cooldownDays: 8,
+    expiresDays: 2,
+    advice: {
+      judge: 'Le Pacte ne permet de nettoyer que si quelqu’un demande à sortir. Ou si un condamné y est envoyé.',
+      mayor: 'Un nettoyage forcé… Le silo s’en souviendrait longtemps.',
+      sheriff: 'Les cellules ne sont pas vides, si vous voulez mon avis.',
+    },
+    onExpire: [{ type: 'social', target: 'all', stat: 'morale', amount: -3 }],
+    choices: [
+      { id: 'wait', label: 'Attendre un volontaire', hint: 'Le moral baisse tant que l’écran est sale', advisor: 'mayor', effects: [{ type: 'social', target: 'all', stat: 'grievance', amount: 2 }] },
+      {
+        id: 'prisoner',
+        label: 'Envoyer un condamné au nettoyage',
+        hint: 'Écran net · moral + · peur ++ · légitimité du juge selon le dossier',
+        advisor: 'sheriff',
+        requires: [{ metric: 'prisoners', op: '>', value: 0 }],
+        effects: [{ type: 'kill', selector: 'prisoner', cause: 'Envoyé·e au nettoyage (condamné·e)', perceived: 'controversial' }, { type: 'clean_lens' }, { type: 'social', target: 'all', stat: 'fear', amount: 10 }, { type: 'memory', memoryType: 'forced_cleaning', text: 'Un condamné envoyé au nettoyage', severity: 0.7, legitimacy: 40 }],
+      },
+      { id: 'cut_feed', label: 'Éteindre les écrans', hint: 'Plus d’image du dehors · rumeurs et méfiance', effects: [{ type: 'social', target: 'all', stat: 'trust', amount: -6 }, { type: 'tag', tag: 'screens_off', days: 10 }] },
     ],
   },
 ];

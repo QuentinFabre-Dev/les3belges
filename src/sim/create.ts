@@ -31,16 +31,16 @@ import { journal, message } from './util';
 export const WORLD_VERSION = 1;
 
 const ASSETS: Omit<InfrastructureAsset, 'specialistIds' | 'state' | 'failureRisk' | 'repairProgress' | 'ignoredWarnings'>[] = [
-  { id: 'generator', name: 'Génératrice principale', floor: 'f09', sector: 'energy', condition: 0.78, wearPerDay: 0.012, partsPerRepair: 30, critical: true },
-  { id: 'pump_main', name: 'Pompe principale', floor: 'f08', sector: 'water', condition: 0.66, wearPerDay: 0.011, partsPerRepair: 18, critical: true },
-  { id: 'water_filters', name: 'Filtres à eau', floor: 'f08', sector: 'water', condition: 0.8, wearPerDay: 0.013, partsPerRepair: 10, critical: false },
-  { id: 'hydro_array', name: 'Rampes hydroponiques', floor: 'f04', sector: 'agriculture', condition: 0.74, wearPerDay: 0.009, partsPerRepair: 12, critical: false },
-  { id: 'ventilation', name: 'Ventilation centrale', floor: 'f07', sector: 'mechanical', condition: 0.82, wearPerDay: 0.008, partsPerRepair: 16, critical: true },
-  { id: 'elevator', name: 'Ascenseur central', floor: 'f05', sector: 'mechanical', condition: 0.7, wearPerDay: 0.01, partsPerRepair: 10, critical: false },
-  { id: 'servers', name: 'Serveurs DSI', floor: 'f01', sector: 'admin', condition: 0.85, wearPerDay: 0.006, partsPerRepair: 8, critical: false },
-  { id: 'forge', name: 'Forge & ateliers', floor: 'f07', sector: 'mechanical', condition: 0.76, wearPerDay: 0.009, partsPerRepair: 12, critical: false },
-  { id: 'mine_drill', name: 'Foreuses minières', floor: 'f12', sector: 'mines', condition: 0.69, wearPerDay: 0.016, partsPerRepair: 14, critical: false },
-  { id: 'mine_supports', name: 'Étais & galeries', floor: 'f12', sector: 'mines', condition: 0.72, wearPerDay: 0.006, partsPerRepair: 10, critical: false },
+  { id: 'generator', name: 'Génératrice principale', floor: 'energy', sector: 'energy', condition: 0.78, wearPerDay: 0.012, partsPerRepair: 30, critical: true },
+  { id: 'pump_main', name: 'Pompe principale', floor: 'water', sector: 'water', condition: 0.66, wearPerDay: 0.011, partsPerRepair: 18, critical: true },
+  { id: 'water_filters', name: 'Filtres à eau', floor: 'water', sector: 'water', condition: 0.8, wearPerDay: 0.013, partsPerRepair: 10, critical: false },
+  { id: 'hydro_array', name: 'Rampes hydroponiques', floor: 'agriculture', sector: 'agriculture', condition: 0.74, wearPerDay: 0.009, partsPerRepair: 12, critical: false },
+  { id: 'ventilation', name: 'Ventilation centrale', floor: 'mechanical', sector: 'mechanical', condition: 0.82, wearPerDay: 0.008, partsPerRepair: 16, critical: true },
+  { id: 'elevator', name: 'Ascenseur central', floor: 'res_mid', sector: 'mechanical', condition: 0.7, wearPerDay: 0.01, partsPerRepair: 10, critical: false },
+  { id: 'servers', name: 'Serveurs DSI', floor: 'admin', sector: 'admin', condition: 0.85, wearPerDay: 0.006, partsPerRepair: 8, critical: false },
+  { id: 'forge', name: 'Forge & ateliers', floor: 'mechanical', sector: 'mechanical', condition: 0.76, wearPerDay: 0.009, partsPerRepair: 12, critical: false },
+  { id: 'mine_drill', name: 'Foreuses minières', floor: 'mines', sector: 'mines', condition: 0.69, wearPerDay: 0.016, partsPerRepair: 14, critical: false },
+  { id: 'mine_supports', name: 'Étais & galeries', floor: 'mines', sector: 'mines', condition: 0.72, wearPerDay: 0.006, partsPerRepair: 10, critical: false },
 ];
 
 function makeName(rng: Rng, sex: 'f' | 'm') {
@@ -117,9 +117,9 @@ export function createWorld(seed = Date.now() % 2147483647): WorldState {
   const officeHolderIds: Partial<Record<OfficeId, number>> = {};
   for (const def of OFFICES) {
     const h = OFFICE_HOLDERS[def.id];
-    const home = def.sector ? SECTOR_FLOOR[def.sector] : 'f05';
+    const home = def.sector ? SECTOR_FLOOR[def.sector] : 'res_mid';
     const hid = householdId++;
-    const c = add(baseCitizen(citizens.length, rng, h.first, h.last, h.sex, h.age, hid, home === 'f12' ? 'f11' : home));
+    const c = add(baseCitizen(citizens.length, rng, h.first, h.last, h.sex, h.age, hid, home === 'mines' ? 'res_low' : home));
     Object.assign(c, { skill: h.skill, leadership: h.leadership, integrity: h.integrity, popularity: h.popularity, traits: h.traits, key: true, officeId: def.id, portrait: def.portrait, sector: def.sector ?? 'admin', influence: 55 + Math.round(h.popularity / 3) });
     officeHolderIds[def.id] = c.id;
     // Conjoint·e et enfant(s) pour que leur sort compte socialement.
@@ -241,6 +241,7 @@ export function createWorld(seed = Date.now() % 2147483647): WorldState {
       sector: def.sector,
       left: def.left,
       right: def.right,
+      cafeteria: def.cafeteria,
       capacity: def.capacity,
       condition: rng.range(0.72, 0.92),
       power: 1,
@@ -349,6 +350,7 @@ export function createWorld(seed = Date.now() % 2147483647): WorldState {
     cooldowns: {},
     psychology: { fear: 15, morale: 62, trust: 60, legitimacy: 68, authority: 70 },
     stability: 72,
+    lens: 0.78,
     history: [],
     nextUid: 1,
     stats: { deaths: 0, births: 0, arrests: 0 },

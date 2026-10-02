@@ -39,6 +39,15 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 (68 → 44 au jour 90) si l'on ne fait que gérer techniquement. Il faut donc aussi gouverner
 (élections, promesses tenues, vérité, concessions) — c'est voulu.
 
+### Étape 1 bis — Réfectoires et écran extérieur (livrée)
+- ✅ Silo restructuré en 14 étages avec identifiants explicites (`water`, `mines`…) au lieu de `f08`, `f12`
+- ✅ Grand réfectoire en -01, juste sous la surface : écran géant sur le monde extérieur
+- ✅ Cafétéria des profondeurs en -09 avec écran relais ; chacun mange au réfectoire le plus proche
+- ✅ Vue extérieure rendue en direct dans les écrans (masque : les lampes restent devant), dérive lente, parasites, coupure si plus de courant
+- ✅ Netteté des capteurs : la poussière salit l'écran jour après jour et pèse sur le moral de tout le silo
+- ✅ Le nettoyage (« Je veux sortir ») rend l'écran net ; événement « L’écran se voile » : attendre un volontaire, envoyer un condamné, ou éteindre les écrans
+- ⬜ Quand le silo grandira (étape 3) : une cafétéria tous les ~10 étages, files d'attente aux heures de repas, écran du grand réfectoire comme lieu de rassemblement lors des crises
+
 ### Étape 2 — Cœur systémique
 - ⬜ Justice complète : arrestation → détention → procès → verdict → appel (§150, §169–171)
 - ⬜ Rumeurs propagées dans le graphe social, vraies ou fausses, traçables par la DSI (§112–114)
@@ -65,7 +74,7 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 |---|---|---|---|
 | 1–3 | Vision, piliers, boucle | ✅ | Le silo vit sans le joueur ; décisions à coût/risque |
 | 2.4 | Paliers de réponse (pas de « dernier recours ») | 🟡 | La plupart des crises ont 3–4 options ; à systématiser |
-| 4 | Structure du silo par étages | ✅ | 12 étages |
+| 4 | Structure du silo par étages | ✅ | 14 étages dont 2 réfectoires |
 | 5 | Vues Silo / Étage / Salle / Personne | 🟡 | Silo + fiche étage + fiche habitant ; vue Salle à faire |
 | 6 | Population simulée vs PNJ visibles | ✅ | 75–400 PNJ selon réglage |
 | 7 | Animations et petits événements visuels | 🟡 | marche, escaliers, travail, porter, réparer, assis, discuter, bulles, étincelles ; manque manger/dormir visibles, files |
@@ -116,4 +125,5 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 ## Journal des livraisons
 
 - **Étape 0** — socle jouable : simulation, rendu, UI, assets, tests headless.
+- **Étape 1 bis** — réfectoires avec écran sur l'extérieur (3 images générées : grand réfectoire ×2 essais, cafétéria des profondeurs), netteté des capteurs et nettoyage.
 - **Étape 1** — intro du Pacte (2 images générées : livre fermé, livre ouvert créé à partir du fermé), tutoriel guidé, mode debug, banc d'équilibrage, ajustements.

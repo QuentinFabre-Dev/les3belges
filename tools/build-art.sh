@@ -28,3 +28,9 @@ mkdir -p "$OUT/intro"
 convert "$SRC/pact_closed.png" -filter Box -resize 1024x576 -dither None -colors 96 "$OUT/intro/pact_closed.png"
 convert "$SRC/pact_open.png" -filter Box -resize 1024x576 -dither None -colors 96 "$OUT/intro/pact_open.png"
 convert "$SRC/pact_open.png" -crop 620x560+1050+300 +repage -filter Box -resize 310x280 -dither None -colors 48 "$OUT/intro/page.png"
+# Réfectoires : écrans éteints (noirs) remplacés en jeu par la vue extérieure ; on en extrait un masque.
+for n in cafe_main cafe_mid; do
+  convert "$SRC/$n.png" -crop 1888x768+80+44 +repage -filter Box -resize 256x104\! -dither None -colors 64 "$OUT/rooms/$n.png"
+done
+node "$(dirname "$0")/screen-mask.mjs" "$OUT/rooms/cafe_main.png" "$OUT/rooms/cafe_main_screen.png" 130 40
+node "$(dirname "$0")/screen-mask.mjs" "$OUT/rooms/cafe_mid.png" "$OUT/rooms/cafe_mid_screen.png" 135 37
