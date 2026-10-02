@@ -1,7 +1,8 @@
-import { FLOORS, SECTOR_NAMES, TICKS_PER_DAY, TICKS_PER_HOUR, TRAIT_LABELS } from './data/world';
+import { FLOORS, GENERATOR_CAPACITY, POPULATION_START, SCALE, SECTOR_NAMES, TICKS_PER_DAY, TICKS_PER_HOUR, TRAIT_LABELS } from './data/world';
 import { Rng, clamp } from './rng';
 import type { Ctx } from './context';
 import { createWorld } from './create';
+import { ROOMS } from './data/rooms';
 import { autonomyDays, countStaff, energyStep, resourceStep, updateEfficiency } from './systems/economy';
 import { fail, infrastructureHour, minesHour, riskLabel } from './systems/infrastructure';
 import {
@@ -24,6 +25,7 @@ import {
   arrestCitizen,
   computePresence,
   healthDeaths,
+  locationOf,
   killCitizen,
   populationHour,
   propagate,
@@ -35,6 +37,7 @@ import {
 import type {
   Citizen,
   CitizenDetail,
+  RoomDetail,
   CitizenSummary,
   FloorView,
   GameCommand,
@@ -162,7 +165,7 @@ export class Engine {
       population: ctx.population,
       food: Math.round((w.resources.food.declared / w.resources.food.capacity) * 100),
       water: Math.round((w.resources.water.declared / w.resources.water.capacity) * 100),
-      energy: Math.round((w.resources.energyProduction / 560) * 100),
+      energy: Math.round((w.resources.energyProduction / GENERATOR_CAPACITY) * 100),
       materials: Math.round((w.resources.materials.declared / w.resources.materials.capacity) * 100),
       stability: Math.round(w.stability),
     });
@@ -208,8 +211,8 @@ export class Engine {
     const ctx = this.ctx;
     const insurgent = w.floors.filter((f) => f.unrest >= 5).length;
     let reason = '';
-    if (ctx.population < 700) reason = 'La population du silo s’est effondrée.';
-    else if (insurgent >= 3) reason = 'Une insurrection a pris le contrôle de plusieurs étages.';
+    if (ctx.population < POPULATION_START * 0.5) reason = 'La population du silo s’est effondrée.';
+    else if (insurgent >= 5) reason = 'Une insurrection a pris le contrôle de plusieurs étages.';
     else if (w.stability < 8 && w.psychology.legitimacy < 15) reason = 'L’administration a perdu toute légitimité : le silo ne vous obéit plus.';
     if (!reason) return;
     // Chaîne lisible : on regroupe les morts anonymes, on garde les événements marquants.
@@ -243,7 +246,7 @@ export class Engine {
       case 'SET_POLICY':
         (w.policies as unknown as Record<string, unknown>)[cmd.key] = cmd.value;
         if (cmd.key === 'cleaning') {
-          w.sectors.sanitation.staffingTarget = { low: 28, normal: 45, high: 70 }[cmd.value as 'low' | 'normal' | 'high'];
+          w.sectors.sanitation.staffingTarget = Math.round({ low: 28, normal: 45, high: 70 }[cmd.value as 'low' | 'normal' | 'high'] * SCALE);
           rebalanceStaff(ctx);
         }
         if (cmd.key === 'rations') {
@@ -521,6 +524,8 @@ export class Engine {
         list.sort((a, b) => Number(!!b.officeId) - Number(!!a.officeId) || Number(b.key) - Number(a.key) || b.influence - a.influence);
         return { total: list.length, items: list.slice(q.offset, q.offset + q.limit).map((c) => this.summary(c)) };
       }
+      case 'ROOM':
+        return this.roomDetail(q.floor, q.side);
       case 'CANDIDATES': {
         const office = w.offices[q.officeId];
         const pool = w.citizens.filter((c) => c.lifeState === 'alive' && c.age >= 25 && !c.officeId && (!office.sector || office.id === 'mayor' || office.id === 'judge' || c.sector === office.sector));
@@ -548,12 +553,51 @@ export class Engine {
     };
   }
 
+  private roomDetail(floorId: string, side: 'left' | 'right'): RoomDetail | null {
+    const w = this.w;
+    const f = w.floors.find((x) => x.id === floorId);
+    if (!f) return null;
+    const texture = side === 'left' ? f.left : f.right;
+    const h = hourOf(w);
+    const here = w.citizens.filter((c) => {
+      if (c.lifeState === 'dead') return false;
+      const loc = locationOf(w, c, h);
+      if (!loc || loc.floor !== floorId) return false;
+      return f.left === f.right ? true : (c.id % 2 === 0) === (side === 'left');
+    });
+    here.sort((a, b) => Number(b.key) - Number(a.key) || b.influence - a.influence);
+    const info = ROOMS[texture];
+    const facts: string[] = [];
+    if (f.cafeteria) facts.push(`Netteté de l’écran extérieur : ${Math.round(w.lens * 100)} %`);
+    if (texture === 'court') facts.push(`Affaires en cours : ${w.cases.filter((k) => k.status !== 'closed').length}`);
+    if (texture === 'security') facts.push(`Détenus : ${w.citizens.filter((c) => c.lifeState === 'imprisoned').length}/10 cellules`);
+    if (texture === 'school') facts.push(`Enfants scolarisés : ${w.citizens.filter((c) => c.lifeState === 'alive' && c.age >= 6 && c.age < 16).length}`);
+    if (texture === 'bazaar') facts.push(w.policies.rations === 'reduced' ? 'Le troc de nourriture flambe avec le rationnement.' : 'Échanges calmes.');
+    if (f.lockdown !== 'open') facts.push(f.lockdown === 'full' ? 'Étage sous blocus' : 'Accès contrôlés');
+    if (f.cleanliness < 40) facts.push(`Propreté préoccupante (${f.cleanliness | 0} %)`);
+    return {
+      floor: f.id,
+      floorLabel: f.label,
+      floorName: f.name,
+      side,
+      texture,
+      title: info?.title ?? f.name,
+      description: info?.description ?? '',
+      occupants: here.slice(0, 14).map((c) => ({ id: c.id, name: fullName(c), sector: c.sector, look: c.look, portrait: c.portrait, label: locationOf(w, c, h)?.label ?? '', officeTitle: c.officeId ? w.offices[c.officeId].title : undefined })),
+      total: here.length,
+      assets: Object.values(w.assets)
+        .filter((a) => a.floor === f.id)
+        .map((a) => ({ id: a.id, name: a.name, condition: a.condition, state: a.state })),
+      facts,
+    };
+  }
+
   private citizenDetail(id: number): CitizenDetail | null {
     const w = this.w;
     const c = w.citizens[id];
     if (!c) return null;
     const h = hourOf(w);
-    const routine = c.lifeState !== 'alive' ? (c.lifeState === 'dead' ? 'Décédé·e' : c.lifeState === 'imprisoned' ? 'En détention' : 'Disparu·e') : h >= 22 || h < 6 ? 'Dort' : h === 12 ? 'Repas à la cantine' : c.sector !== 'residential' && ((h >= 7 && h < 12) || (h >= 13 && h < 17)) ? `Travaille (${SECTOR_NAMES[c.sector]})` : 'Temps libre';
+    const routine = c.lifeState === 'dead' ? 'Décédé·e' : (locationOf(w, c, h)?.label ?? '—');
     return {
       ...this.summary(c),
       skill: Math.round(c.skill),
@@ -576,6 +620,17 @@ export class Engine {
       memories: c.memories,
       household: w.citizens.filter((x) => x.householdId === c.householdId && x.id !== c.id).map((x) => ({ id: x.id, name: fullName(x), age: x.age, lifeState: x.lifeState })),
       routine,
+      location: (() => {
+        const loc = locationOf(w, c, h);
+        if (!loc) return undefined;
+        const fl = w.floors.find((x) => x.id === loc.floor);
+        return { floor: loc.floor, floorLabel: fl?.label ?? '', floorIndex: fl?.index ?? 0, act: loc.act, label: loc.label };
+      })(),
+      schedule: Array.from({ length: 24 }, (_, hour) => {
+        const loc = locationOf(w, c, hour);
+        const fl = loc ? w.floors.find((x) => x.id === loc.floor) : undefined;
+        return { hour, floor: loc?.floor ?? '', floorLabel: fl ? `${fl.label} ${fl.name}` : '—', act: loc?.act ?? 'sleep', label: loc?.label ?? '—' };
+      }),
     };
   }
 
@@ -609,7 +664,7 @@ export class Engine {
       {
         key: 'energy',
         label: 'Énergie',
-        pct: clamp(Math.round((r.energyProduction / 560) * 100)),
+        pct: clamp(Math.round((r.energyProduction / GENERATOR_CAPACITY) * 100)),
         days: r.battery,
         trend: Math.round(r.energyProduction - r.energyDemand),
         stock: Math.round(r.energyProduction),

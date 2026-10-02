@@ -112,6 +112,12 @@ export function FloorCard() {
         ))}
       </div>
       <div className="row gap">
+        <button className="btn small" onClick={() => useGame.getState().selectRoom(f.id, 'left', true)} title="Vue Salle">
+          Salle ouest
+        </button>
+        <button className="btn small" onClick={() => useGame.getState().selectRoom(f.id, 'right', true)} title="Vue Salle">
+          Salle est
+        </button>
         <button className="btn small" onClick={() => setView('floors')}>
           Détails
         </button>

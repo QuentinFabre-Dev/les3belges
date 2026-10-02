@@ -8,7 +8,9 @@ import {
   OFFICES,
   OFFICE_HOLDERS,
   POPULATION_START,
+  SCALE,
   SECTOR_FLOOR,
+  SECTOR_FLOORS,
   SECTOR_NAMES,
   STAFFING,
   TRAITS,
@@ -97,6 +99,12 @@ function link(rel: RelationshipEdge[][], a: number, b: number, type: RelationTyp
   rel[b].push({ to: a, type: back, strength, affinity });
 }
 
+// Stocks initiaux mis à l'échelle de la population (pièces : moins, le parc de machines ne grandit pas autant).
+function stock(real: number, capacity: number, exponent = 1) {
+  const k = Math.pow(SCALE, exponent);
+  return { real: Math.round(real * k), declared: Math.round(real * k), capacity: Math.round(capacity * k) };
+}
+
 export function createWorld(seed = Date.now() % 2147483647): WorldState {
   const rng = new Rng(seed);
   const citizens: Citizen[] = [];
@@ -171,7 +179,8 @@ export function createWorld(seed = Date.now() % 2147483647): WorldState {
     for (let i = officeCount; i < STAFFING[s] && cursor < adults.length; i++) {
       const c = adults[cursor++];
       c.sector = s;
-      c.workFloor = SECTOR_FLOOR[s];
+      const options = SECTOR_FLOORS[s].length ? SECTOR_FLOORS[s] : [SECTOR_FLOOR[s]];
+      c.workFloor = options[c.id % options.length];
     }
   }
   for (const c of citizens) if (c.officeId) c.workFloor = SECTOR_FLOOR[c.sector];
@@ -319,11 +328,11 @@ export function createWorld(seed = Date.now() % 2147483647): WorldState {
     offices,
     assets,
     resources: {
-      food: { real: 18000, declared: 18000, capacity: 25000 },
-      water: { real: 5440, declared: 5440, capacity: 8000 },
-      parts: { real: 210, declared: 210, capacity: 500 },
-      materials: { real: 1080, declared: 1080, capacity: 2000 },
-      medicine: { real: 380, declared: 380, capacity: 600 },
+      food: stock(18000, 25000),
+      water: stock(5440, 8000),
+      parts: stock(210, 500, 0.6),
+      materials: stock(1080, 2000),
+      medicine: stock(380, 600),
       battery: 100,
       energyProduction: 0,
       energyDemand: 0,

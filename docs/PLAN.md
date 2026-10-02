@@ -58,10 +58,13 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 
 **Mesures** (12 graines × 60 jours) : passif 34 j médian (0/12) ; joueur automatique 12/12 mais stabilité min. moyenne 35 (51 avant l'étape 2) — il ignore rumeurs et factions, qui pèsent désormais.
 
-### Étape 3 — Échelles de lecture & contenu
-- ⬜ Vue Salle (postes, machines, opérateurs) (§5)
-- ⬜ Vue Personne : suivre un habitant dans sa journée (§5)
-- ⬜ Plus d'étages (30+), nouveaux types de salles, 30–50 événements de plus (§30)
+### Étape 3 — Échelles de lecture & contenu (livrée)
+- ✅ Silo de 30 étages, 3 000 habitants (production/stocks mis à l'échelle), un réfectoire tous les ~10–11 étages (-01 grand réfectoire, -12 et -23 relais) avec écran extérieur (§4, §30)
+- ✅ 5 nouveaux types de salles générés : école, bazar, quartiers ouvriers, blanchisserie, serre ; descriptions par salle (`src/sim/data/rooms.ts`)
+- ✅ Vue Salle : clic sur une salle quand on est zoomé (ou boutons « Salle ouest/est » de la fiche étage) → caméra centrée, fiche avec description, équipement, présents à l'heure et leur activité (§5)
+- ✅ Vue Personne : « Suivre dans le silo » depuis une fiche habitant → la caméra suit un PNJ qui le représente (escaliers, trajets), carte avec activité en cours et bandeau des 24 h (école, travail, repas au réfectoire, bazar, repos) (§5)
+- ✅ 40 événements de plus (75 au total) : école, bazar/marché noir, récoltes, blanchisserie, surpopulation, ascenseur, porteurs, grippe, gaz de mine, filon, eau, génératrice, pompe, départ d'expert, intrusion DSI, archives, maire malade, juge qui part, adjoint corrompu, mariage, enfant perdu, accaparement, vol d'électricité, chanson interdite, bagarre au réfectoire, jour de la Fondation…
+- ✅ Test catalogue : chaque événement s'ouvre et chacun de ses choix se résout sans erreur ni placeholder (`tests/events.test.ts`)
 
 ### Étape 4 — Jeu complet
 - ⬜ Progression sur plusieurs années : vieillissement, générations, mémoire collective (§116)
@@ -78,14 +81,14 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 |---|---|---|---|
 | 1–3 | Vision, piliers, boucle | ✅ | Le silo vit sans le joueur ; décisions à coût/risque |
 | 2.4 | Paliers de réponse (pas de « dernier recours ») | 🟡 | La plupart des crises ont 3–4 options ; à systématiser |
-| 4 | Structure du silo par étages | ✅ | 14 étages dont 2 réfectoires |
-| 5 | Vues Silo / Étage / Salle / Personne | 🟡 | Silo + fiche étage + fiche habitant ; vue Salle à faire |
+| 4 | Structure du silo par étages | ✅ | 30 étages dont 3 réfectoires (-01, -12, -23) |
+| 5 | Vues Silo / Étage / Salle / Personne | ✅ | Silo, fiche étage, vue Salle, vue Personne (suivi + journée) |
 | 6 | Population simulée vs PNJ visibles | ✅ | 75–400 PNJ selon réglage |
 | 7 | Animations et petits événements visuels | 🟡 | marche, escaliers, travail, porter, réparer, assis, discuter, bulles, étincelles ; manque manger/dormir visibles, files |
-| 8 | Routines quotidiennes | ✅ | Présence par heure et par étage |
+| 8 | Routines quotidiennes | ✅ | Présence par heure et par étage ; école, repas au réfectoire, bazar le soir |
 | 9 | Temps et vitesses | ✅ | |
 | 10–11 | Ressources, production/consommation, dépendances | ✅ | eau, nourriture, énergie, fer, pièces, médicaments |
-| 12 | Événements data-driven | ✅ | `src/sim/data/events.ts` |
+| 12 | Événements data-driven | ✅ | `src/sim/data/events.ts` — 75 événements |
 | 13 | Conséquences différées, tags | ✅ | |
 | 14 | Information imparfaite | ✅ | stocks déclarés/réels, capteurs, responsables qui minimisent |
 | 15 | Responsables de département | ✅ | 9 fonctions, avis dans les décisions |
@@ -122,12 +125,13 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 | 134 | Factions | ✅ | Émergence, recrutement, stades, revendications |
 | 135–138 | Performance sociale, promotion dynamique | ✅ | Tick social horaire, propagation bornée, agitateurs promus |
 | 146–199 | Gouvernance : institutions, conseil, lois, précédents, urgence, corruption, audits, transparence | 🟡 | Conseil, alliances, justice, précédents (juge contourné), urgence, audits, transparence ; lois modifiables et matrice des pouvoirs à faire |
-| 200 | Cycle politique, justice, progression, fins, secrets | 🟡 | Justice faite ; progression, fins, secrets = étapes 3–4 |
+| 200 | Cycle politique, justice, progression, fins, secrets | 🟡 | Justice faite ; progression, fins, secrets = étape 4 |
 
 ---
 
 ## Journal des livraisons
 
+- **Étape 3** — 30 étages / 3 000 habitants, 3 réfectoires, vue Salle, vue Personne, 40 nouveaux événements (5 images générées : école, bazar, quartiers, blanchisserie, serre ≈ 0,15 $).
 - **Étape 0** — socle jouable : simulation, rendu, UI, assets, tests headless.
 - **Étape 2** — justice, rumeurs, factions, conseil (2 images générées : tribunal, salle du conseil ; une génération bloquée relancée).
 - **Étape 1 bis** — réfectoires avec écran sur l'extérieur (3 images générées : grand réfectoire ×2 essais, cafétéria des profondeurs), netteté des capteurs et nettoyage.

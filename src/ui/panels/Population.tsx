@@ -151,6 +151,9 @@ export function CitizenCard({ id }: { id: number }) {
         <div className="row gap wrap actions">
           {c.lifeState === 'alive' && (
             <>
+              <button className="btn small" onClick={() => useGame.getState().setFollowed(c.id)} title="Vue Personne : suivre sa journée dans le silo">
+                Suivre dans le silo
+              </button>
               <button className="btn small" onClick={() => act('reward')} title="Moral et popularité + pour lui et ses proches">
                 Récompenser
               </button>

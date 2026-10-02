@@ -5,6 +5,7 @@ import { Tutorial } from './ui/Tutorial';
 import { DebugPanel } from './ui/DebugPanel';
 import { severityColor } from './ui/common';
 import { FloorCard } from './ui/FloorCard';
+import { FollowCard, RoomCard } from './ui/RoomCard';
 import { RightPanel } from './ui/RightPanel';
 import { Sidebar } from './ui/Sidebar';
 import { SiloCanvas } from './ui/SiloCanvas';
@@ -39,6 +40,7 @@ export default function App() {
   const gameOver = useGame((g) => g.snapshot?.gameOver);
   const Active = view !== 'global' ? PANELS[view] : null;
   const phase = useGame((g) => g.phase);
+  const selectedRoom = useGame((g) => g.selectedRoom);
   const setPhase = useGame((g) => g.setPhase);
   const [adminName, setAdminName] = useState(() => {
     try {
@@ -67,6 +69,7 @@ export default function App() {
       if (e.key === 'Escape') {
         useGame.getState().setView('global');
         useGame.getState().selectFloor(undefined);
+        useGame.getState().selectRoom(undefined);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -80,7 +83,8 @@ export default function App() {
       <main className="stage">
         <SiloCanvas />
         {Active && <Active />}
-        {view === 'global' && <FloorCard />}
+        {view === 'global' && (selectedRoom ? <RoomCard /> : <FloorCard />)}
+        {view === 'global' && <FollowCard />}
         {!ready && <div className="loading">Initialisation du silo…</div>}
       </main>
       <RightPanel />

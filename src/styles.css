@@ -1334,3 +1334,36 @@ p {
 .backers .portrait {
   border-radius: 50%;
 }
+
+/* ---------------------------------------------------------------- Étape 3 : vues Salle et Personne */
+.room-card .occupants {
+  max-height: 220px;
+  overflow-y: auto;
+}
+.room-card .list-row {
+  padding: 4px 6px;
+}
+.follow-card {
+  position: absolute;
+  right: 64px;
+  bottom: 34px;
+  width: 320px;
+  z-index: 4;
+  background: rgba(18, 24, 32, 0.96);
+  border-color: var(--accent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.day-strip {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 1px;
+  height: 14px;
+  margin-top: 8px;
+}
+.day-strip span {
+  border-radius: 1px;
+}
+.day-strip span.now {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}

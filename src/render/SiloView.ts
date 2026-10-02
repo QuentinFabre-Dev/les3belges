@@ -30,7 +30,7 @@ export interface RenderSettings {
 }
 
 const SURFACE_H = 300;
-const ROOM_TEXTURES = ['court', 'council', 'admin', 'servers', 'security', 'canteen', 'residential', 'hydroponics', 'medical', 'workshop', 'water', 'generator', 'depot', 'mine', 'cafe_main', 'cafe_mid', 'cafe_main_screen', 'cafe_mid_screen'];
+const ROOM_TEXTURES = ['court', 'council', 'school', 'bazaar', 'quarters', 'laundry', 'greenhouse', 'admin', 'servers', 'security', 'canteen', 'residential', 'hydroponics', 'medical', 'workshop', 'water', 'generator', 'depot', 'mine', 'cafe_main', 'cafe_mid', 'cafe_main_screen', 'cafe_mid_screen'];
 const WORK_FLOORS_24H = new Set<SectorId>(['water', 'energy', 'medical', 'security']);
 
 type Mode = 'idle' | 'walk' | 'act' | 'stairs';
@@ -113,6 +113,26 @@ export class SiloView {
   private effSecondary: RenderSettings['secondary'];
   private drag: { x: number; y: number; cx: number; cy: number; moved: boolean } | null = null;
   onSelectFloor?: (id: string) => void;
+  onSelectRoom?: (id: string, side: 'left' | 'right') => void;
+  // Habitant suivi (vue Personne)
+  private follow: {
+    id: number;
+    sp: Sprite;
+    label: Text;
+    row: number;
+    floor: number;
+    x: number;
+    y: number;
+    targetFloor: number;
+    act: string;
+    route: number[];
+    stair: { from: number; to: number; t: number } | null;
+    tx: number;
+    facing: 1 | -1;
+    ft: number;
+    anim: Anim;
+  } | null = null;
+  private followCam = true;
   onSelectNpc?: (floorId: string, sector: SectorId) => void;
   onCamera?: (visible: string[]) => void;
 
@@ -356,6 +376,101 @@ export class SiloView {
     this.clampCam();
   }
 
+  focusRoom(id: string, side: 'left' | 'right') {
+    const g = this.floors.find((x) => x.id === id);
+    if (!g) return;
+    this.zoom = Math.min(4, Math.max(1.5, (this.app.screen.width * 0.85) / ROOM_W));
+    this.camX = side === 'left' ? ROOM_W / 2 : SHAFT_X + SHAFT_W + ROOM_W / 2;
+    this.camY = g.index * FLOOR_H + ROOM_H / 2 - this.app.screen.height / this.zoom / 2;
+    this.followCam = false;
+  }
+
+  // Vue Personne : un habitant réel, rendu par un sprite dédié qui suit sa routine.
+  setFollow(t: { id: number; name: string; sector: SectorId; look: number; floorIndex: number; act: string } | null) {
+    if (!t) {
+      if (this.follow) {
+        this.follow.sp.destroy();
+        this.follow.label.destroy();
+      }
+      this.follow = null;
+      return;
+    }
+    if (this.follow && this.follow.id !== t.id) this.setFollow(null);
+    if (!this.follow) {
+      const row = atlasRow(t.sector, t.look);
+      const sp = new Sprite(this.frames[row][0]);
+      sp.anchor.set(0.5, 1);
+      this.fxLayer.addChild(sp);
+      const label = new Text({ text: t.name, style: { fontFamily: 'Rajdhani, sans-serif', fontSize: 13, fontWeight: '700', fill: 0xe8a33c, stroke: { color: 0x000000, width: 3 } } });
+      label.anchor.set(0.5, 1);
+      this.ui.addChild(label);
+      const x = this.randomSpotSafe(t.floorIndex);
+      this.follow = { id: t.id, sp, label, row, floor: t.floorIndex, x, y: t.floorIndex * FLOOR_H + FEET_Y, targetFloor: t.floorIndex, act: t.act, route: [], stair: null, tx: x, facing: 1, ft: 0, anim: 'idle' };
+      this.followCam = true;
+    }
+    const f = this.follow;
+    f.act = t.act;
+    if (t.floorIndex !== f.targetFloor) {
+      f.targetFloor = t.floorIndex;
+      const path = this.nav.path(f.floor, t.floorIndex, true) ?? [f.floor, t.floorIndex];
+      f.route = path.slice(1);
+      f.tx = LANDING_X;
+    } else if (!f.stair && !f.route.length) f.tx = this.randomSpotSafe(f.floor);
+  }
+
+  recenterFollow() {
+    this.followCam = true;
+  }
+
+  private randomSpotSafe(floor: number) {
+    return this.snap ? this.randomSpot(floor) : 60;
+  }
+
+  private updateFollow(dt: number) {
+    const f = this.follow;
+    if (!f) return;
+    if (f.stair) {
+      f.stair.t += dt / 2.6;
+      const p = this.stairPoint(f.stair.from, f.stair.to, Math.min(1, f.stair.t));
+      f.x = p.x;
+      f.y = p.y;
+      f.facing = p.dir > 0 ? 1 : -1;
+      f.anim = 'walk';
+      if (f.stair.t >= 1) {
+        f.floor = f.stair.to;
+        f.stair = null;
+        if (f.route.length) f.stair = { from: f.floor, to: f.route.shift()!, t: 0 };
+        else f.tx = this.randomSpotSafe(f.floor);
+      }
+    } else {
+      f.y = f.floor * FLOOR_H + FEET_Y;
+      const d = f.tx - f.x;
+      if (Math.abs(d) > 1.5) {
+        f.facing = d > 0 ? 1 : -1;
+        f.x += Math.sign(d) * Math.min(Math.abs(d), 22 * dt);
+        f.anim = 'walk';
+      } else if (f.route.length && Math.abs(f.x - LANDING_X) < 2) {
+        f.stair = { from: f.floor, to: f.route.shift()!, t: 0 };
+      } else {
+        f.anim = f.act === 'work' ? 'work' : f.act === 'eat' || f.act === 'sleep' ? 'sit' : f.act === 'walk' ? 'idle' : 'talk';
+        if (f.act === 'walk' && Math.random() < dt * 0.4) f.tx = this.randomSpotSafe(f.floor);
+      }
+    }
+    const fr = FRAMES[f.anim];
+    f.ft += dt * (f.anim === 'walk' ? 7 : 2);
+    f.sp.texture = this.frames[f.row][fr[Math.floor(f.ft) % fr.length]];
+    f.sp.position.set(Math.round(f.x), Math.round(f.y));
+    f.sp.scale.x = f.facing;
+    f.sp.tint = f.act === 'sleep' ? 0x9090a0 : 0xffffff;
+    f.label.position.set(this.world.x + f.x * this.zoom, this.world.y + (f.y - CHAR_H - 3) * this.zoom);
+    if (this.followCam) {
+      const viewH = this.app.screen.height / this.zoom;
+      const wantY = f.y - viewH / 2;
+      this.camY += (wantY - this.camY) * Math.min(1, dt * 3);
+      this.clampCam();
+    }
+  }
+
   zoomBy(factor: number, sx = this.app.screen.width / 2, sy = this.app.screen.height / 2) {
     const before = this.toWorld(sx, sy);
     this.zoom = Math.min(4, Math.max(0.45, this.zoom * factor));
@@ -415,7 +530,10 @@ export class SiloView {
       if (!this.drag) return;
       const dx = e.global.x - this.drag.x;
       const dy = e.global.y - this.drag.y;
-      if (Math.abs(dx) + Math.abs(dy) > 5) this.drag.moved = true;
+      if (Math.abs(dx) + Math.abs(dy) > 5) {
+        this.drag.moved = true;
+        this.followCam = false;
+      }
       this.camX = this.drag.cx - dx / this.zoom;
       this.camY = this.drag.cy - dy / this.zoom;
       this.clampCam();
@@ -440,7 +558,13 @@ export class SiloView {
       }
     }
     const i = Math.floor(p.y / FLOOR_H);
-    if (i >= 0 && i < this.snap.floors.length && p.x > -200 && p.x < SILO_W + WALL_W) this.onSelectFloor?.(this.snap.floors[i].id);
+    if (i >= 0 && i < this.snap.floors.length && p.x > -200 && p.x < SILO_W + WALL_W) {
+      const id = this.snap.floors[i].id;
+      // Zoomé : un clic dans une salle ouvre la vue Salle.
+      if (this.zoom >= 2 && p.y - i * FLOOR_H < ROOM_H && (p.x < SHAFT_X || p.x > SHAFT_X + SHAFT_W) && p.x > 0 && p.x < SILO_W) {
+        this.onSelectRoom?.(id, p.x < SHAFT_X ? 'left' : 'right');
+      } else this.onSelectFloor?.(id);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -542,6 +666,7 @@ export class SiloView {
     const mul = s.speed === 0 ? 0.35 : 1 + Math.log2(Math.max(1, s.speed)) * 0.25;
     for (const n of this.npcs) if (n.active) this.updateNpc(n, dt * mul, time);
     if (secondary) this.updateSparks(dt);
+    this.updateFollow(dt * mul);
     this.adaptive(dt);
   }
 

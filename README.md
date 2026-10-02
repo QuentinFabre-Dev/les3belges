@@ -44,7 +44,7 @@ src/
                        promesses, élections, nominations, blocus
     data/
       world.ts         Étages, secteurs, fonctions institutionnelles
-      events.ts        ~35 événements/décisions (contenu, sans code moteur)
+      events.ts        75 événements/décisions (contenu, sans code moteur)
   render/              PixiJS (main thread)
     SiloView.ts        Silo vertical, caméra/zoom, culling des étages, éclairage, blocus,
                        pool de 400 PNJ, dégradation adaptative
@@ -79,6 +79,7 @@ Les salles, portraits et la surface ont été générés via le MCP Monid
 
 ## Feuille de route
 
-Prochaines briques : vue Salle, factions explicites, rumeurs propagées dans le graphe,
-justice détaillée (procès, appels), mines multi-sites, progression sur plusieurs années,
-tutoriel, conditions de victoire.
+Silo de 30 étages (3 000 habitants, 3 réfectoires), vues Silo / Étage / Salle / Personne,
+justice, rumeurs, factions, conseil, intro du Pacte et tutoriel sont en place.
+Prochaine étape : progression sur plusieurs années, fins, niveaux de difficulté, son,
+déploiement. Détail et couverture du document de conception : `docs/PLAN.md`.

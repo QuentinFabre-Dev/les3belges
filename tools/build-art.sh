@@ -35,6 +35,6 @@ done
 node "$(dirname "$0")/screen-mask.mjs" "$OUT/rooms/cafe_main.png" "$OUT/rooms/cafe_main_screen.png" 130 40
 node "$(dirname "$0")/screen-mask.mjs" "$OUT/rooms/cafe_mid.png" "$OUT/rooms/cafe_mid_screen.png" 135 37
 # Étape 2 : tribunal et salle du conseil (générés avec cafe_mid.png en référence d'échelle)
-for n in court council; do
+for n in court council school bazaar quarters laundry greenhouse; do
   [ -f "$SRC/$n.png" ] && convert "$SRC/$n.png" -crop 1888x768+80+44 +repage -filter Box -resize 256x104\! -dither None -colors 64 "$OUT/rooms/$n.png"
 done

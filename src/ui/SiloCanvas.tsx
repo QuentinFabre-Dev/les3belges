@@ -9,6 +9,7 @@ export function SiloCanvas() {
   const viewRef = useRef<SiloView | null>(null);
   const [fps, setFps] = useState(60);
   const [npcs, setNpcs] = useState(0);
+  const followed = useGame((g) => g.followed);
 
   useEffect(() => {
     let disposed = false;
@@ -22,7 +23,12 @@ export function SiloCanvas() {
       viewRef.current = v;
       const s = useGame.getState().snapshot;
       if (s) v.setSnapshot(s);
-      v.onSelectFloor = (id) => useGame.getState().selectFloor(id);
+      v.onSelectFloor = (id) => {
+        useGame.getState().selectRoom(undefined);
+        useGame.getState().selectFloor(id);
+      };
+      v.onSelectRoom = (id, side) => useGame.getState().selectRoom(id, side);
+      viewRef.current.setFollow(useGame.getState().followTarget ?? null);
       v.onSelectNpc = async (floor, sector) => {
         // Un PNJ visible représente un habitant réel de l'étage : on ouvre une fiche correspondante.
         const res = await query<{ items: CitizenSummary[] }>({ type: 'CITIZENS', floor, sector: sector === 'residential' ? undefined : sector, offset: 0, limit: 40 });
@@ -37,6 +43,8 @@ export function SiloCanvas() {
       if (st.selectedFloor !== prev.selectedFloor) v.setSelected(st.selectedFloor);
       if (st.focusRequest && st.focusRequest !== prev.focusRequest) v.focusFloor(st.focusRequest.floor);
       if (st.settings !== prev.settings) v.setSettings(st.settings);
+      if (st.selectedRoom && st.selectedRoom !== prev.selectedRoom && st.selectedRoom.focus) v.focusRoom(st.selectedRoom.floor, st.selectedRoom.side);
+      if (st.followTarget !== prev.followTarget) v.setFollow(st.followTarget ?? null);
     });
     const t = setInterval(() => {
       if (viewRef.current) {
@@ -63,12 +71,17 @@ export function SiloCanvas() {
         <button className="icon-btn" onClick={() => viewRef.current?.zoomBy(0.8)} title="Zoom arrière" aria-label="Zoom arrière">
           <Icon name="zoomOut" />
         </button>
+        {followed !== undefined && (
+          <button className="icon-btn" onClick={() => viewRef.current?.recenterFollow()} title="Recentrer sur l’habitant suivi" aria-label="Recentrer">
+            <Icon name="users" />
+          </button>
+        )}
         <button className="icon-btn" onClick={() => viewRef.current?.fit()} title="Ajuster" aria-label="Ajuster">
           <Icon name="target" />
         </button>
       </div>
       <div className="canvas-hint muted">
-        Molette : défiler · Ctrl+molette : zoom · Glisser : déplacer · Clic : étage / habitant · {fps} FPS · {npcs} PNJ
+        Molette : défiler · Ctrl+molette : zoom · Glisser : déplacer · Clic : étage / habitant (zoomé : salle) · {fps} FPS · {npcs} PNJ
       </div>
     </div>
   );

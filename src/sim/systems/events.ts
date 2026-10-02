@@ -1,5 +1,5 @@
 import { EVENTS } from '../data/events';
-import { SECTOR_FLOOR, SECTOR_NAMES, TICKS_PER_DAY, TICKS_PER_HOUR } from '../data/world';
+import { SCALE, SECTOR_FLOOR, SECTOR_FLOORS, SECTOR_NAMES, TICKS_PER_DAY, TICKS_PER_HOUR } from '../data/world';
 import { clamp } from '../rng';
 import type { Ctx } from '../context';
 import type {
@@ -87,6 +87,15 @@ export function metric(ctx: Ctx, key: string): number | string {
       return w.stability;
     case 'lens':
       return w.lens;
+    case 'pop':
+      if (p[1] === 'sick') return ctx.sick;
+      if (p[1] === 'children') return ctx.children;
+      if (p[1] === 'total') return ctx.population;
+      return 0;
+    case 'crowding':
+      return Math.max(...w.floors.filter((f) => f.capacity > 0).map((f) => f.residents / f.capacity));
+    case 'tagged':
+      return hasTag(w, p[1]) ? 1 : 0;
     case 'prisoners':
       return w.citizens.filter((c) => c.lifeState === 'imprisoned').length;
   }
@@ -167,6 +176,9 @@ function resolveContext(ctx: Ctx, def: EventDefinition, data: DecisionContext): 
   if (cx?.floorFrom && !out.floor) {
     if (cx.floorFrom === 'worst_cleanliness') out.floor = [...w.floors].sort((a, b) => a.cleanliness - b.cleanliness)[0].id;
     else if (cx.floorFrom === 'max_unrest') out.floor = [...w.floors].sort((a, b) => b.unrestPressure - a.unrestPressure)[0].id;
+    else if (cx.floorFrom === 'max_crowding') out.floor = [...w.floors].sort((a, b) => b.residents / Math.max(1, b.capacity) - a.residents / Math.max(1, a.capacity))[0].id;
+    else if (cx.floorFrom === 'random_residential') out.floor = rng.pick(w.floors.filter((f) => f.sector === 'residential' && !f.cafeteria)).id;
+    else if (cx.floorFrom === 'max_anger') out.floor = [...w.floors].sort((a, b) => b.anger - a.anger)[0].id;
     else if (cx.floorFrom === 'locked') out.floor = [...w.floors].filter((f) => f.lockdown !== 'open').sort((a, b) => (a.lockdown === 'full' ? -1 : 1) - (b.lockdown === 'full' ? -1 : 1))[0]?.id;
     else out.floor = cx.floorFrom;
   }
@@ -191,6 +203,15 @@ function resolveContext(ctx: Ctx, def: EventDefinition, data: DecisionContext): 
       out.vars!.grievance = Math.round(sector.grievance);
       out.vars!.morale = Math.round(sector.morale);
       out.floor = out.floor ?? SECTOR_FLOOR[sector.id];
+    } else if (cx.subjectFrom === 'child') {
+      subject = rng.pick(w.citizens.filter((c) => alive(c) && c.age >= 6 && c.age <= 12));
+    } else if (cx.subjectFrom.startsWith('random:')) {
+      const sector = cx.subjectFrom.slice(7);
+      const pool = w.citizens.filter((c) => alive(c) && c.age >= 18 && !c.officeId && (sector === 'any' || c.sector === sector));
+      subject = pool.length ? rng.pick(pool) : undefined;
+      if (subject) out.floor = out.floor ?? subject.homeFloor;
+    } else if (cx.subjectFrom === 'oldest_expert') {
+      subject = w.citizens.filter((c) => alive(c) && c.flags.includes('specialist') && !c.officeId).sort((a, b) => b.age - a.age)[0];
     } else if (cx.subjectFrom.startsWith('office:')) {
       subject = holder(w, cx.subjectFrom.slice(7) as OfficeId);
     }
@@ -220,6 +241,8 @@ export function interpolate(ctx: Ctx, text: string, p: { floor?: string; assetId
     if (key === 'asset') return p.assetId ? w.assets[p.assetId]?.name ?? '' : '';
     if (key === 'assetId') return p.assetId ?? '';
     if (key === 'subject') return p.subjectId !== undefined ? fullName(w.citizens[p.subjectId]) : 'un habitant';
+    if (key === 'subjectAge') return p.subjectId !== undefined ? String(Math.floor(w.citizens[p.subjectId].age)) : '?';
+    if (key === 'sick') return String(ctx.sick);
     if (key.startsWith('office:')) {
       const h = holder(w, key.slice(7) as OfficeId);
       return h ? `${w.offices[key.slice(7) as OfficeId].title} ${fullName(h)}` : w.offices[key.slice(7) as OfficeId]?.title ?? '';
@@ -319,6 +342,10 @@ function socialTargets(ctx: Ctx, target: string, p: DecisionContext): Citizen[] 
     if (s === 'subject') s = (p.vars?.sector as string) ?? (p.subjectId !== undefined ? w.citizens[p.subjectId].sector : 'residential');
     return alive.filter((c) => c.sector === s);
   }
+  if ((target === 'subject' || target === 'subject_reward') && p.subjectId !== undefined) {
+    const c = w.citizens[p.subjectId];
+    return c.lifeState === 'alive' ? [c] : [];
+  }
   if (target === 'household:subject' && p.subjectId !== undefined) {
     const h = w.citizens[p.subjectId].householdId;
     return alive.filter((c) => c.householdId === h);
@@ -338,8 +365,10 @@ export function applyEffects(ctx: Ctx, effects: Effect[], p: DecisionContext) {
           break;
         }
         const s = w.resources[e.resource];
-        if (!e.declaredOnly) s.real = clamp(s.real + e.amount, 0, s.capacity);
-        if (!e.realOnly) s.declared = clamp(s.declared + e.amount, 0, s.capacity);
+        // Les montants des données sont calibrés pour 1 400 habitants.
+        const amount = e.resource === 'food' || e.resource === 'water' || e.resource === 'materials' ? e.amount * SCALE : e.amount;
+        if (!e.declaredOnly) s.real = clamp(s.real + amount, 0, s.capacity);
+        if (!e.realOnly) s.declared = clamp(s.declared + amount, 0, s.capacity);
         break;
       }
       case 'asset': {
@@ -553,7 +582,7 @@ export function rebalanceStaff(ctx: Ctx) {
     while (missing > 0 && pool.length) {
       const c = pool.shift()!;
       c.sector = s.id;
-      c.workFloor = SECTOR_FLOOR[s.id];
+      c.workFloor = SECTOR_FLOORS[s.id][c.id % SECTOR_FLOORS[s.id].length] ?? SECTOR_FLOOR[s.id];
       c.skill = Math.max(10, c.skill - 12); // novice dans le métier
       missing--;
     }

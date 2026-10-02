@@ -98,6 +98,7 @@ export function populationHour(ctx: Ctx) {
     if (home.cleanliness < 22) dh -= 0.15;
     if (c.age > 70) dh -= 0.04;
     if (c.fatigue > 75) dh -= 0.2;
+    if (hasTag(w, 'flu') && (c.id + Math.floor(w.tick / 144)) % 9 === 0) dh -= c.age > 65 || c.age < 8 ? 0.9 : 0.5;
     if (c.health < 60) dh += healPerSick;
     else dh += 0.08;
     c.health = clamp(c.health + dh);
@@ -153,51 +154,63 @@ export function sanitationHour(ctx: Ctx) {
 // ---------------------------------------------------------------------------
 // Présence par étage selon les routines quotidiennes
 
+export type Activity = 'work' | 'walk' | 'eat' | 'sleep' | 'leisure';
+
+const FLOOR_INDEX = new Map(FLOORS.map((f, i) => [f.id, i]));
+const CAF_IDX = CAFETERIAS.map((id) => FLOOR_INDEX.get(id)!);
+
+// Chacun mange au réfectoire le plus proche de chez lui.
+export function canteenFor(c: Citizen) {
+  const h = FLOOR_INDEX.get(c.homeFloor) ?? 0;
+  let best = CAFETERIAS[0];
+  let d = Infinity;
+  CAF_IDX.forEach((ci, k) => {
+    if (Math.abs(ci - h) < d) {
+      d = Math.abs(ci - h);
+      best = CAFETERIAS[k];
+    }
+  });
+  return best;
+}
+
+// Où se trouve un habitant à une heure donnée, et ce qu'il y fait (routine quotidienne).
+export function locationOf(w: WorldState, c: Citizen, h: number): { floor: string; act: Activity; label: string } | null {
+  if (c.lifeState === 'dead' || c.lifeState === 'missing') return null;
+  if (c.lifeState === 'imprisoned') return { floor: 'security', act: 'sleep', label: 'En cellule' };
+  if (c.flags.includes('injured') || c.health < 35) return { floor: 'medical', act: 'sleep', label: 'Soigné·e à l’infirmerie' };
+  const extended = w.policies.extendedHours;
+  const working = c.sector !== 'residential' && c.age >= 16;
+  if (h >= 22 || h < 6) return { floor: c.homeFloor, act: 'sleep', label: 'Dort' };
+  if (h === 6 || h === 17) return { floor: c.homeFloor, act: 'walk', label: h === 6 ? 'Se prépare, trajet' : 'Rentre chez soi' };
+  if (h === 12) return { floor: canteenFor(c), act: 'eat', label: 'Repas au réfectoire' };
+  if ((h >= 7 && h < 12) || (h >= 13 && h < (extended ? 20 : 17))) {
+    if (working) {
+      const floor = c.sector === 'sanitation' ? (c.id % 3 === 0 ? c.workFloor : FLOORS[(c.id * 7 + h) % FLOORS.length].id) : c.workFloor;
+      return { floor, act: 'work', label: c.sector === 'sanitation' ? 'Tournée de nettoyage' : 'Au travail' };
+    }
+    if (c.age >= 6 && c.age < 16) return { floor: 'school', act: 'work', label: 'À l’école' };
+    return { floor: c.homeFloor, act: 'leisure', label: c.age < 6 ? 'Garde des enfants' : 'Sans affectation, chez soi' };
+  }
+  if (h >= 18 && h < 20) {
+    if (c.id % 3 === 0) return { floor: canteenFor(c), act: 'leisure', label: 'Soirée au réfectoire' };
+    if (c.id % 5 === 1) return { floor: 'bazaar', act: 'leisure', label: 'Troc au bazar' };
+  }
+  return { floor: c.homeFloor, act: 'leisure', label: 'Temps libre' };
+}
+
 export function computePresence(ctx: Ctx) {
   const { w } = ctx;
   const h = hourOf(w);
   const presence: Ctx['presence'] = {};
   for (const f of w.floors) presence[f.id] = { present: 0, work: 0, walk: 0, eat: 0, sleep: 0, leisure: 0 };
-  // Chacun mange au réfectoire le plus proche de chez lui.
-  const index = new Map(FLOORS.map((f, i) => [f.id, i]));
-  const cafIdx = CAFETERIAS.map((id) => index.get(id)!);
-  const canteenFor = (c: Citizen) => {
-    const h = index.get(c.homeFloor) ?? 0;
-    let best = CAFETERIAS[0];
-    let d = Infinity;
-    cafIdx.forEach((ci, k) => {
-      if (Math.abs(ci - h) < d) {
-        d = Math.abs(ci - h);
-        best = CAFETERIAS[k];
-      }
-    });
-    return best;
-  };
-  const extended = w.policies.extendedHours;
   for (const c of w.citizens) {
     if (c.lifeState !== 'alive') continue;
-    let floor = c.homeFloor;
-    let act: 'work' | 'walk' | 'eat' | 'sleep' | 'leisure' = 'leisure';
-    const working = c.sector !== 'residential' && c.age >= 16 && !c.flags.includes('injured');
-    if (h >= 22 || h < 6) act = 'sleep';
-    else if (h === 6 || h === 17) act = 'walk';
-    else if (h === 12) {
-      floor = canteenFor(c);
-      act = 'eat';
-    } else if ((h >= 7 && h < 12) || (h >= 13 && h < (extended ? 20 : 17))) {
-      if (working) {
-        floor = c.sector === 'sanitation' ? ['cafeteria', 'cafeteria_mid', 'res_high', 'res_mid', 'res_low', 'mechanical', 'mines', 'agriculture'][c.id % 8] : c.workFloor;
-        act = 'work';
-      } else act = c.age < 16 ? 'leisure' : 'leisure';
-    } else if (h >= 18 && h < 20 && c.id % 3 === 0) {
-      floor = canteenFor(c);
-      act = 'leisure';
-    }
-    if (c.flags.includes('injured') || c.health < 35) floor = 'medical';
-    const p = presence[floor];
+    const loc = locationOf(w, c, h);
+    if (!loc) continue;
+    const p = presence[loc.floor];
     if (!p) continue;
     p.present++;
-    p[act]++;
+    p[loc.act]++;
   }
   ctx.presence = presence;
 }

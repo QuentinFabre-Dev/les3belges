@@ -1,6 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { send, useGame } from '../game/store';
+import { FLOORS } from '../sim/data/world';
 import type { Snapshot } from '../sim/types';
+
+const WATER_FLOOR = FLOORS.find((f) => f.id === 'water')!;
+const WATER_LABEL = WATER_FLOOR.label;
+const WATER = `${WATER_FLOOR.label} ${WATER_FLOOR.name}`;
 
 // Tutoriel guidé : chaque étape cible un élément de l'interface (data-tut ou sélecteur CSS)
 // et avance soit au clic sur « Suivant », soit quand le joueur a fait l'action demandée.
@@ -48,7 +53,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'Inspecter un étage',
-    text: 'Cliquez sur l’étage -10 Eau dans le silo (la station de pompage). Il est centré pour vous.',
+    text: `Cliquez sur l’étage ${WATER} dans le silo (la station de pompage). Il est centré pour vous.`,
     target: '.stage',
     place: 'inside',
     enter: () => {
@@ -56,7 +61,7 @@ const STEPS: Step[] = [
       useGame.setState({ focusRequest: { floor: 'water', n: Date.now() } });
     },
     done: (c) => c.floor === 'water',
-    hint: 'Cliquez sur l’étage -10 pour continuer',
+    hint: `Cliquez sur l’étage ${WATER_LABEL} pour continuer`,
   },
   {
     title: 'La fiche d’étage',

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { RenderSettings } from '../render/SiloView';
-import type { GameCommand, GameQuery, Severity, Snapshot, WorkerMessage, WorkerRequest } from '../sim/types';
+import type { GameCommand, GameQuery, SectorId, Severity, Snapshot, WorkerMessage, WorkerRequest } from '../sim/types';
 
 // Pont main thread <-> Web Worker. L'UI n'écrit jamais dans le monde : elle envoie des commandes.
 const worker = new Worker(new URL('../sim/worker.ts', import.meta.url), { type: 'module' });
@@ -53,6 +53,11 @@ interface GameStore {
   selectedCitizen?: number;
   focusedDecision?: number;
   focusRequest?: { floor: string; n: number };
+  selectedRoom?: { floor: string; side: 'left' | 'right'; n: number; focus: boolean };
+  followed?: number;
+  followTarget?: { id: number; name: string; sector: SectorId; look: number; floorIndex: number; act: string };
+  selectRoom: (floor?: string, side?: 'left' | 'right', focus?: boolean) => void;
+  setFollowed: (id?: number) => void;
   settings: RenderSettings;
   toasts: Toast[];
   setView: (v: View) => void;
@@ -70,6 +75,8 @@ export const useGame = create<GameStore>((set, get) => ({
   settings: loadSettings(),
   toasts: [],
   setView: (view) => set({ view }),
+  selectRoom: (floor, side, focus = false) => set({ selectedRoom: floor && side ? { floor, side, n: Date.now(), focus } : undefined, selectedFloor: floor ?? get().selectedFloor }),
+  setFollowed: (followed) => set({ followed, followTarget: followed === undefined ? undefined : get().followTarget, view: followed !== undefined ? 'global' : get().view }),
   selectFloor: (selectedFloor, focus) => set({ selectedFloor, focusRequest: focus && selectedFloor ? { floor: selectedFloor, n: Date.now() } : get().focusRequest }),
   selectCitizen: (selectedCitizen) => set({ selectedCitizen, view: selectedCitizen !== undefined ? 'population' : get().view }),
   focusDecision: (focusedDecision) => set({ focusedDecision }),

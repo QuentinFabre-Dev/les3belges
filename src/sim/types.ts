@@ -41,7 +41,12 @@ export type RoomTexture =
   | 'cafe_main'
   | 'cafe_mid'
   | 'court'
-  | 'council';
+  | 'council'
+  | 'school'
+  | 'bazaar'
+  | 'quarters'
+  | 'laundry'
+  | 'greenhouse';
 
 export type Trait =
   | 'loyal'
@@ -539,7 +544,8 @@ export type WorkerRequest =
 export type GameQuery =
   | { type: 'CITIZEN'; id: CitizenId }
   | { type: 'CITIZENS'; floor?: FloorId; sector?: SectorId; keyOnly?: boolean; search?: string; offset: number; limit: number }
-  | { type: 'CANDIDATES'; officeId: OfficeId };
+  | { type: 'CANDIDATES'; officeId: OfficeId }
+  | { type: 'ROOM'; floor: FloorId; side: 'left' | 'right' };
 
 export type WorkerMessage =
   | { kind: 'snapshot'; snapshot: Snapshot }
@@ -678,6 +684,22 @@ export interface CitizenDetail extends CitizenSummary {
   memories: CitizenMemory[];
   household: { id: CitizenId; name: string; age: number; lifeState: LifeState }[];
   routine: string;
+  location?: { floor: FloorId; floorLabel: string; floorIndex: number; act: string; label: string };
+  schedule: { hour: number; floor: FloorId; floorLabel: string; act: string; label: string }[];
+}
+
+export interface RoomDetail {
+  floor: FloorId;
+  floorLabel: string;
+  floorName: string;
+  side: 'left' | 'right';
+  texture: RoomTexture;
+  title: string;
+  description: string;
+  occupants: { id: CitizenId; name: string; sector: SectorId; look: number; portrait?: string; label: string; officeTitle?: string }[];
+  total: number;
+  assets: { id: AssetId; name: string; condition: number; state: AssetState }[];
+  facts: string[];
 }
 
 export interface Snapshot {
