@@ -95,6 +95,28 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 - ⬜ Stocks physiques par étage et transferts (§48–52 bis)
 - ⬜ Mesure de performance sur une vraie machine (§32)
 
+### Phase visuelle — Profondeur « 2D enrichie » (évaluation, à faire)
+Objectif : garder le pixel art mais donner du volume, à la manière des jeux en couches avec éclairage par pixel
+(référence citée : Soulbound). État actuel : chaque salle est une image plate 256×104, les PNJ marchent sur une seule
+ligne, la lumière est un voile global par étage + des halos additifs (ambiance de l'étape « ambiance »).
+
+- ⬜ **A. Gains rapides, sans nouvelle image** (≈ 1 session)
+  - Rendu pixel-parfait : le monde dessiné dans une texture basse résolution puis agrandi par paliers entiers (les effets restent nets)
+  - 2 à 3 « couloirs » de profondeur par salle : PNJ du fond plus petits/sombres, tri par profondeur, ombres au sol
+  - Carte de lumière : chaque lampe déjà détectée éclaire vraiment son entourage (lumière multipliée), nuit et pannes bien plus dramatiques, lampes torches des adjoints, gyrophares de secours
+  - Rayons de lumière sous les lampes, brume de profondeur (les étages profonds plus voilés), étalonnage couleur selon l'heure, le secteur et les crises, léger bloom sur les points brillants, écran des réfectoires façon tube cathodique
+- ⬜ **B. Relief par pixel** (≈ 1 session)
+  - Cartes de normales générées par script à partir des images existantes (relief estimé depuis la luminance et les contours ; aucun modèle de profondeur disponible sur Monid)
+  - Shader d'éclairage PixiJS (jusqu'à ~24 lumières par étage visible) : les murs, machines et tuyaux prennent la lumière de côté ; liseré lumineux sur les PNJ
+- ⬜ **C. Salles en couches** (≈ 1–2 sessions, ≈ 3–6 $ de génération)
+  - Chaque salle découpée en fond / mobilier / premier plan (piliers, rambardes, tuyaux) : les PNJ passent derrière le premier plan
+  - Pipeline : version « salle vide » par édition d'image (Wan ou GPT-image avec l'image actuelle en référence), mobilier isolé par différence, éléments de premier plan générés sur fond uni puis détourés (Topaz, ≈ 0,10 $/image)
+  - Parallaxe légère entre couches quand la caméra bouge
+- ⬜ **D. Profondeur du silo lui-même** (≈ 1 session, ≈ 1 $)
+  - Strates de roche en parallaxe derrière le fût, cage d'escalier dessinée en perspective, câbles et conduites verticales au premier plan, surface et ciel en plusieurs plans
+- Risques : cohérence entre couches générées par IA (retouches à prévoir), relief « gaufré » si les normales sont trop fortes, coût GPU sur machines modestes (tout passera par le réglage « Éclairage » : bas = rendu actuel)
+- Ordre conseillé : A → B → C → D, avec un prototype sur une seule salle (le grand réfectoire) avant de généraliser
+
 ---
 
 ## Couverture du document de conception
