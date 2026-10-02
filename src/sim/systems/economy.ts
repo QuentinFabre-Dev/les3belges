@@ -3,6 +3,7 @@ import { clamp } from '../rng';
 import type { Ctx } from '../context';
 import type { InfrastructureAsset, Rates, ResourceStock, SectorId, WorldState } from '../types';
 import { floorById, hasTag, holder, hourOf, isWorker } from '../util';
+import { factionSlowdown } from './factions';
 
 const GENERATOR_CAPACITY = 560;
 const BATTERY_POWER = 120;
@@ -64,6 +65,7 @@ export function updateEfficiency(ctx: Ctx) {
     }
     if (w.policies.extendedHours) eff *= 1.15;
     if (hasTag(w, `strike:${s.id}`)) eff *= 0.25;
+    eff *= factionSlowdown(ctx, s.id);
     s.efficiency = clamp(eff, 0, 1.5);
   }
 }

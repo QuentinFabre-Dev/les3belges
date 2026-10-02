@@ -45,6 +45,10 @@ import type {
   Speed,
   WorldState,
 } from './types';
+import { applyVerdict, caseAction, caseOf, justiceDay, justiceHour } from './systems/justice';
+import { rumorAction, rumorsHour, startRumor } from './systems/rumors';
+import { DEMAND_LABELS, STAGE_LABELS, factionAction, factionsDay, setStage } from './systems/factions';
+import { convene, councilChoice, councilReadyIn, councilView, initAffinity } from './systems/council';
 import { addTag, dayOf, fullName, hasTag, holder, hourOf, journal, minuteOfDay, pruneIncidents } from './util';
 
 export class Engine {
@@ -55,6 +59,7 @@ export class Engine {
   constructor(world?: WorldState) {
     this.w = world ?? createWorld();
     this.ctx = this.makeCtx();
+    if (!Object.keys(this.w.officeAffinity).length) initAffinity(this.ctx);
     this.hourly();
   }
 
@@ -71,13 +76,17 @@ export class Engine {
       presence: {},
       infoAccuracy: 0.8,
       scheduled: [],
-      scheduledCtx: {},
     };
     return ctx;
   }
 
   load(world: WorldState) {
-    if (world.lens === undefined) world.lens = 0.8; // anciennes sauvegardes
+    // Anciennes sauvegardes
+    if (world.lens === undefined) world.lens = 0.8;
+    world.cases ??= [];
+    world.rumors ??= [];
+    world.factions ??= [];
+    world.officeAffinity ??= {};
     this.w = world;
     this.ctx = this.makeCtx();
     this.hourly();
@@ -120,6 +129,8 @@ export class Engine {
     healthDeaths(ctx);
     processPromises(ctx);
     electionHour(ctx);
+    justiceHour(ctx);
+    rumorsHour(ctx);
     if (w.tick > 0) evaluateEvents(ctx);
     // Mesure de la fiabilité de l'information : DSI + serveurs + responsables.
     const it = holder(w, 'it_director');
@@ -136,6 +147,8 @@ export class Engine {
     const ctx = this.ctx;
     const w = this.w;
     supplyTheftDay(ctx);
+    justiceDay(ctx);
+    factionsDay(ctx);
     // La poussière et les vents salissent les capteurs extérieurs.
     w.lens = Math.max(0.05, w.lens - 0.012 - ctx.rng.next() * 0.01);
     reportsDay(ctx);
@@ -285,6 +298,21 @@ export class Engine {
         } else addTag(w, `repair_${a.id}`, 1);
         break;
       }
+      case 'CASE_ACTION':
+        caseAction(ctx, cmd.caseId, cmd.action);
+        break;
+      case 'RUMOR_ACTION':
+        rumorAction(ctx, cmd.rumorId, cmd.action);
+        break;
+      case 'FACTION_ACTION':
+        factionAction(ctx, cmd.factionId, cmd.action, cmd.demand);
+        break;
+      case 'CONVENE_COUNCIL':
+        convene(ctx);
+        break;
+      case 'COUNCIL_CHOICE':
+        councilChoice(ctx, cmd.proposalId);
+        break;
       case 'SPAWN_EVENT': {
         const def = eventDef(cmd.eventId);
         if (def) spawn(ctx, def, { floor: cmd.floor, assetId: cmd.assetId });
@@ -317,8 +345,7 @@ export class Engine {
       if (lost > 10) {
         const thief = w.citizens.find((c) => c.lifeState === 'alive' && c.flags.includes('thief'));
         if (thief) {
-          ctx.scheduled.push('theft_suspect');
-          ctx.scheduledCtx['theft_suspect'] = { subjectId: thief.id };
+          ctx.scheduled.push({ id: 'theft_suspect', data: { subjectId: thief.id } });
         }
       }
     } else if (target === 'maintenance') {
@@ -388,7 +415,9 @@ export class Engine {
         break;
       }
       case 'release':
-        if (c.lifeState === 'imprisoned') {
+        if (c.lifeState === 'imprisoned' && caseOf(ctx, id)) {
+          applyVerdict(ctx, id, 'pardon');
+        } else if (c.lifeState === 'imprisoned') {
           c.lifeState = 'alive';
           journal(w, `${fullName(c)} est libéré·e.`, 'info');
           propagate(ctx, id, 10 + c.popularity * 0.2, 'reward', 70);
@@ -420,7 +449,7 @@ export class Engine {
     }
   }
 
-  private debug(action: 'fail' | 'resources' | 'unrest' | 'accident', target?: string) {
+  private debug(action: 'fail' | 'resources' | 'unrest' | 'accident' | 'faction' | 'rumor' | 'arrest', target?: string) {
     const w = this.w;
     const ctx = this.ctx;
     if (action === 'fail') this.forceFailure(target ?? 'generator');
@@ -436,12 +465,29 @@ export class Engine {
         c.anger = clamp(c.anger + 40);
         c.grievance = clamp(c.grievance + 35);
       }
+    } else if (action === 'faction') {
+      for (const c of w.citizens) if (c.sector === 'mines' && c.lifeState === 'alive') c.grievance = clamp(c.grievance + 35);
+      w.sectors.mines.grievance = 50;
+      for (let i = 0; i < 8 && !w.factions.some((f) => f.status === 'active' && f.sector === 'mines'); i++) factionsDay(ctx);
+      const f = w.factions.find((x) => x.status === 'active' && x.sector === 'mines');
+      if (f) {
+        setStage(ctx, f, 1);
+        setStage(ctx, f, 2);
+      }
+    } else if (action === 'rumor') {
+      startRumor(ctx, 'rations_secretes', 'false');
+    } else if (action === 'arrest') {
+      const c = w.citizens.find((x) => x.lifeState === 'alive' && x.sector === 'supplies' && !x.officeId);
+      if (c) {
+        arrestCitizen(ctx, c.id, 'Vol de fournitures', 60);
+        const k = caseOf(ctx, c.id);
+        if (k) k.trialTick = w.tick + 1;
+      }
     } else if (action === 'accident') {
       const miner = w.citizens.find((c) => c.lifeState === 'alive' && c.sector === 'mines');
       if (miner) {
         killCitizen(ctx, miner.id, 'Accident minier', 'negligence');
-        ctx.scheduled.push('mine_accident');
-        ctx.scheduledCtx['mine_accident'] = { floor: 'mines', subjectId: miner.id };
+        ctx.scheduled.push({ id: 'mine_accident', data: { floor: 'mines', subjectId: miner.id } });
       }
     }
     evaluateEvents(ctx);
@@ -613,6 +659,8 @@ export class Engine {
         repairing,
         managerName: mgr ? fullName(mgr) : undefined,
         managerId: mgr?.id,
+        rumor: Math.max(0, ...w.rumors.filter((r) => r.status === 'spreading' || r.status === 'confirmed').map((r) => r.reach[f.id] ?? 0)),
+        factionSymbol: w.factions.find((x) => x.status === 'active' && x.stage >= 1 && x.floorIds.includes(f.id))?.symbol,
       };
     });
 
@@ -692,6 +740,74 @@ export class Engine {
       gameOver: w.gameOver,
       infoAccuracy: acc,
       lens: w.lens,
+      cases: w.cases
+        .filter((k) => k.status !== 'closed' || w.tick - (k.sentenceEndTick ?? k.trialTick) < TICKS_PER_DAY * 3)
+        .map((k) => {
+          const c = w.citizens[k.defendantId];
+          return {
+            id: k.id,
+            defendantId: k.defendantId,
+            name: fullName(c),
+            charge: k.charge,
+            evidence: k.evidence,
+            status: k.status,
+            verdict: k.verdict,
+            hoursToTrial: Math.max(0, (k.trialTick - w.tick) / TICKS_PER_HOUR),
+            daysLeft: k.sentenceEndTick ? Math.max(0, (k.sentenceEndTick - w.tick) / TICKS_PER_DAY) : undefined,
+            forced: k.forced,
+            appealed: k.appealed,
+            notes: k.notes,
+            popularity: Math.round(c.popularity),
+          };
+        })
+        .reverse(),
+      rumors: w.rumors
+        .filter((r) => r.status !== 'gone')
+        .map((r) => {
+          const floors = w.floors.map((f) => ({ id: f.id, label: f.label, reach: Math.round(clamp((r.reach[f.id] ?? 0) + noise(50 + r.id + f.index) * 0.15, 0, 1) * 100) / 100 }));
+          return {
+            id: r.id,
+            text: r.text,
+            truth: r.known ? r.truth : 'unknown',
+            status: r.status,
+            reach: floors.reduce((s, f) => s + f.reach, 0) / floors.length,
+            floors,
+            ageHours: (w.tick - r.createdTick) / TICKS_PER_HOUR,
+            investigating: !!r.investigating,
+            denied: r.denied,
+            originName: r.known && r.originId !== undefined ? fullName(w.citizens[r.originId]) : undefined,
+          };
+        }),
+      factions: w.factions
+        .filter((f) => f.detected && f.status !== 'dissolved')
+        .map((f) => ({
+          id: f.id,
+          name: f.name,
+          symbol: f.symbol,
+          sectorName: SECTOR_NAMES[f.sector],
+          floors: f.floorIds.map((id) => w.floors.find((x) => x.id === id)?.label ?? id),
+          leaderId: f.leaderId,
+          leaderName: fullName(w.citizens[f.leaderId]),
+          members: f.members.length,
+          memberIds: f.infiltrated ? f.members.slice(0, 30) : undefined,
+          influence: Math.round(f.influence),
+          stage: f.stage,
+          stageLabel: STAGE_LABELS[f.stage],
+          demands: f.demands.map((d) => ({ kind: d, label: DEMAND_LABELS[d] })),
+          infiltrated: f.infiltrated,
+          status: f.status,
+        })),
+      signals: w.factions
+        .filter((f) => f.status === 'active' && !f.detected && f.stage >= 1)
+        .flatMap((f) => {
+          const fl = w.floors.find((x) => x.id === f.floorIds[0]);
+          const where = fl ? `${fl.label} ${fl.name}` : '';
+          const out = [{ floor: f.floorIds[0], text: `Des tags « ${f.symbol} » apparaissent dans les escaliers (${where}).` }];
+          if (f.stage >= 2) out.push({ floor: f.floorIds[0], text: `Absentéisme en hausse chez les ${SECTOR_NAMES[f.sector].toLowerCase()}.` });
+          return out;
+        }),
+      council: councilView(ctx),
+      councilReadyInHours: councilReadyIn(ctx),
     };
   }
 }

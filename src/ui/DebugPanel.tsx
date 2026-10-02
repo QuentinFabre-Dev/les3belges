@@ -24,6 +24,15 @@ export function DebugPanel() {
       <button className="btn small" onClick={() => ev('surface_rumor')}>
         Rumeur
       </button>
+      <button className="btn small" onClick={() => send({ type: 'DEBUG', action: 'faction' })}>
+        Faction (mines)
+      </button>
+      <button className="btn small" onClick={() => send({ type: 'DEBUG', action: 'rumor' })}>
+        Rumeur fausse
+      </button>
+      <button className="btn small" onClick={() => send({ type: 'DEBUG', action: 'arrest' })}>
+        Arrestation
+      </button>
       <button className="btn small" onClick={() => send({ type: 'DEBUG', action: 'resources' })}>
         Stocks pleins
       </button>

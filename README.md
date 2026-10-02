@@ -36,6 +36,10 @@ src/
       economy.ts       Production/consommation, énergie et délestage par priorités
       infrastructure.ts Usure, chocs, maintenance (pièces), pannes, réparations, accidents miniers
       social.ts        Besoins, salubrité, routines, agitation, propagation sociale, vols
+      justice.ts       Dossiers, détention, procès, verdicts, appels
+      rumors.ts        Rumeurs : naissance, propagation (réfectoires), vérité cachée
+      factions.ts      Factions : émergence, recrutement, stades, revendications
+      council.ts       Conseil du silo : prises de position, alliances
       events.ts        Moteur data-driven : conditions, effets génériques, effets différés,
                        promesses, élections, nominations, blocus
     data/

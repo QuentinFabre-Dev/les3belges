@@ -13,6 +13,5 @@ export interface Ctx {
   waterSupplyRatio: number;
   presence: Record<string, { present: number; work: number; walk: number; eat: number; sleep: number; leisure: number }>;
   infoAccuracy: number;
-  scheduled: string[]; // événements à déclencher immédiatement
-  scheduledCtx: Record<string, { floor?: string; assetId?: string; subjectId?: number }>;
+  scheduled: { id: string; data: { floor?: string; assetId?: string; subjectId?: number } }[]; // événements à déclencher immédiatement
 }

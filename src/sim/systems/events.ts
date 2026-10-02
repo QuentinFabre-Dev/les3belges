@@ -16,6 +16,9 @@ import type {
 } from '../types';
 import { addTag, dayOf, floorById, fullName, hasTag, holder, journal, openIncident, resolveIncidents } from '../util';
 import { arrestCitizen, killCitizen, propagate, unrestCauses, vacate } from './social';
+import { applyVerdict, caseOf, judgeThreshold } from './justice';
+import { startRumor } from './rumors';
+import { DEMAND_LABELS, STAGE_LABELS, factionAction } from './factions';
 import { autonomyDays } from './economy';
 
 const DEFS = new Map(EVENTS.map((e) => [e.id, e]));
@@ -118,9 +121,9 @@ export function check(ctx: Ctx, c: Condition): boolean {
 export function evaluateEvents(ctx: Ctx) {
   const { w, rng } = ctx;
   // Événements déclenchés par les systèmes (pannes, accidents, troubles...)
-  for (const id of ctx.scheduled.splice(0)) {
+  for (const { id, data } of ctx.scheduled.splice(0)) {
     const def = DEFS.get(id);
-    if (def) spawn(ctx, def, ctx.scheduledCtx[id] ?? {});
+    if (def) spawn(ctx, def, data);
   }
   if (w.gameOver) return;
   for (const def of EVENTS) {
@@ -140,7 +143,7 @@ export function spawn(ctx: Ctx, def: EventDefinition, data: DecisionContext) {
   const pctx = resolveContext(ctx, def, data);
   if (pctx === null) return;
   // Pas de doublon : un même événement sur le même étage / équipement ne s'empile pas.
-  if (w.pending.some((p) => p.defId === def.id && p.floor === pctx.floor && p.assetId === pctx.assetId)) return;
+  if (w.pending.some((p) => p.defId === def.id && p.floor === pctx.floor && p.assetId === pctx.assetId && p.subjectId === pctx.subjectId)) return;
   if (w.pending.length >= 10) return;
   const pending: PendingDecision = {
     uid: w.nextUid++,
@@ -209,7 +212,7 @@ function resolveContext(ctx: Ctx, def: EventDefinition, data: DecisionContext): 
 
 export function interpolate(ctx: Ctx, text: string, p: { floor?: string; assetId?: string; subjectId?: number; vars?: Record<string, string | number> }) {
   const { w } = ctx;
-  return text.replace(/\{([a-zA-Z_:]+)\}/g, (_, key: string) => {
+  return text.replace(/\{([a-zA-Z0-9_:]+)\}/g, (_, key: string) => {
     if (key === 'floor') {
       const f = p.floor ? floorById(w, p.floor) : undefined;
       return f ? `${f.label} ${f.name}` : 'l’étage';
@@ -227,6 +230,24 @@ export function interpolate(ctx: Ctx, text: string, p: { floor?: string; assetId
     if (key === 'parts') return String(Math.round(w.resources.parts.declared));
     if (key === 'materialsPct') return String(Math.round((w.resources.materials.declared / w.resources.materials.capacity) * 100));
     if (key === 'supportsPct') return String(Math.round(w.assets.mine_supports.condition * 100));
+    if (key === 'charge' || key === 'evidence' || key === 'judgeView' || key === 'sentence') {
+      const k = caseOf(ctx, p.subjectId);
+      if (!k) return '';
+      if (key === 'charge') return k.charge.toLowerCase();
+      if (key === 'evidence') return String(k.evidence);
+      if (key === 'sentence') return String([0, 4, 9, 16][k.severity]);
+      const t = judgeThreshold(ctx);
+      return k.evidence >= t ? 'Le juge estime le dossier solide.' : k.evidence >= t - 15 ? 'Le juge hésite : le dossier est fragile.' : 'Le juge juge le dossier très insuffisant.';
+    }
+    if (key === 'faction' || key === 'demands' || key === 'demand1' || key === 'leader' || key === 'stage') {
+      const f = factionAt(w, p.floor);
+      if (!f) return '';
+      if (key === 'faction') return f.name;
+      if (key === 'leader') return fullName(w.citizens[f.leaderId]);
+      if (key === 'stage') return STAGE_LABELS[f.stage].toLowerCase();
+      if (key === 'demand1') return f.demands[0] ? DEMAND_LABELS[f.demands[0]].toLowerCase() : 'leurs revendications';
+      return f.demands.map((d) => DEMAND_LABELS[d].toLowerCase()).join(' ; ');
+    }
     if (key === 'population') return String(ctx.population);
     if (key === 'capacity') return String(w.floors.reduce((a, f) => a + f.capacity, 0));
     if (key === 'lensPct') return String(Math.round(w.lens * 100));
@@ -389,7 +410,10 @@ export function applyEffects(ctx: Ctx, effects: Effect[], p: DecisionContext) {
       }
       case 'release': {
         const c = citizenBySelector(ctx, e.selector, p);
-        if (c && c.lifeState === 'imprisoned') c.lifeState = 'alive';
+        if (c && c.lifeState === 'imprisoned') {
+          if (caseOf(ctx, c.id)) applyVerdict(ctx, c.id, 'pardon');
+          else c.lifeState = 'alive';
+        }
         break;
       }
       case 'dismiss':
@@ -454,6 +478,17 @@ export function applyEffects(ctx: Ctx, effects: Effect[], p: DecisionContext) {
       case 'clean_lens':
         cleanLens(ctx);
         break;
+      case 'verdict':
+        applyVerdict(ctx, p.subjectId, e.mode);
+        break;
+      case 'rumor':
+        startRumor(ctx, e.templateId);
+        break;
+      case 'faction': {
+        const f = factionAt(w, p.floor);
+        if (f) factionAction(ctx, f.id, e.action);
+        break;
+      }
     }
   }
 }
@@ -581,6 +616,12 @@ export function appoint(ctx: Ctx, officeId: OfficeId, citizenId: number) {
   for (const m of w.citizens) if (m.lifeState === 'alive' && m.sector === office.sector) m.morale = clamp(m.morale + delta);
   addTag(w, 'chief_replaced', 10);
   journal(w, `${office.title} : ${fullName(c)} nommé·e.`, 'info');
+}
+
+export function factionAt(w: WorldState, floor?: string) {
+  return w.factions
+    .filter((f) => f.status === 'active' && (!floor || f.floorIds.includes(floor)))
+    .sort((a, b) => b.stage - a.stage)[0];
 }
 
 // Le nettoyage : celui qui sort nettoie les capteurs avant de mourir. Le monde redevient visible.
@@ -726,7 +767,7 @@ export function decisionView(ctx: Ctx, p: PendingDecision): DecisionView | null 
     advice,
     choices: def.choices.map((c) => ({
       id: c.id,
-      label: c.label,
+      label: interpolate(ctx, c.label, p),
       hint: c.hint,
       enabled: !c.requires || c.requires.every((r) => check(ctx, r)),
       advisor: c.advisor ? ADVICE_DEFAULT_TITLE[c.advisor] : undefined,

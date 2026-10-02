@@ -39,7 +39,9 @@ export type RoomTexture =
   | 'depot'
   | 'mine'
   | 'cafe_main'
-  | 'cafe_mid';
+  | 'cafe_mid'
+  | 'court'
+  | 'council';
 
 export type Trait =
   | 'loyal'
@@ -305,6 +307,84 @@ export interface Election {
   winnerId?: CitizenId;
 }
 
+// ---------------------------------------------------------------------------
+// Justice, rumeurs, factions, conseil (étape 2)
+
+export type Verdict = 'acquitted' | 'prison' | 'cleaning' | 'pardoned';
+
+export interface Case {
+  id: number;
+  defendantId: CitizenId;
+  charge: string;
+  severity: number; // 1-3 : gravité du motif
+  evidence: number; // 0-100 : solidité du dossier
+  openedTick: number;
+  trialTick: number;
+  status: 'detention' | 'trial' | 'serving' | 'closed';
+  verdict?: Verdict;
+  sentenceEndTick?: number;
+  appealed?: boolean;
+  forced?: boolean; // verdict imposé par l'administration contre l'avis du juge
+  notes: string[];
+}
+
+export type RumorTruth = 'true' | 'false' | 'partial';
+
+export interface Rumor {
+  id: number;
+  templateId: string;
+  text: string;
+  truth: RumorTruth;
+  known: boolean; // le joueur connaît la vérité (enquête DSI)
+  originFloor: FloorId;
+  originId?: CitizenId;
+  reach: Record<FloorId, number>; // 0-1 par étage
+  createdTick: number;
+  fear: number;
+  anger: number;
+  trust: number;
+  status: 'spreading' | 'fading' | 'debunked' | 'confirmed' | 'gone';
+  denied?: boolean;
+  investigating?: number; // tick de fin d'enquête
+}
+
+export type DemandKind = 'lower_quota' | 'more_rations' | 'release_member' | 'replace_chief' | 'end_lockdown' | 'inquiry' | 'more_staff';
+
+export interface Faction {
+  id: number;
+  name: string;
+  symbol: string;
+  sector: SectorId;
+  floorIds: FloorId[];
+  leaderId: CitizenId;
+  members: CitizenId[];
+  influence: number; // 0-100
+  stage: 0 | 1 | 2 | 3 | 4; // cercle, mouvement, organisation, préparation, insurrection
+  demands: DemandKind[];
+  createdTick: number;
+  lastStageTick: number;
+  detected: boolean;
+  infiltrated: boolean;
+  status: 'active' | 'coopted' | 'dissolved';
+}
+
+export interface CouncilProposal {
+  id: string;
+  label: string;
+  hint: string;
+  effects: Effect[];
+}
+
+export interface CouncilSession {
+  tick: number;
+  topic: string;
+  title: string;
+  summary: string;
+  proposals: CouncilProposal[];
+  statements: { officeId: OfficeId; proposalId: string; text: string }[];
+  resolved?: string;
+}
+
 export interface WorldState {
   version: number;
   seed: number;
@@ -329,6 +409,11 @@ export interface WorldState {
   tags: Record<string, number>; // tag -> tick d'expiration (Infinity = permanent)
   cooldowns: Record<string, number>;
   election?: Election;
+  cases: Case[];
+  rumors: Rumor[];
+  factions: Faction[];
+  council?: CouncilSession;
+  officeAffinity: Record<string, number>; // 'a|b' -> -100..100
   psychology: { fear: number; morale: number; trust: number; legitimacy: number; authority: number };
   stability: number;
   lens: number; // netteté des capteurs extérieurs (écran des réfectoires), 0-1
@@ -385,7 +470,10 @@ export type Effect =
   | { type: 'reveal_stocks' }
   | { type: 'chance'; p: number; then: Effect[]; else?: Effect[] }
   | { type: 'start_election'; officeId: OfficeId }
-  | { type: 'clean_lens' };
+  | { type: 'clean_lens' }
+  | { type: 'verdict'; mode: 'judge' | 'convict' | 'pardon' | 'cleaning' | 'reduce' | 'annul' | 'confirm' }
+  | { type: 'rumor'; templateId: string }
+  | { type: 'faction'; action: 'negotiate' | 'coopt' | 'infiltrate' | 'arrest_leader' | 'dissolve' };
 
 export interface DecisionChoice {
   id: string;
@@ -434,8 +522,13 @@ export type GameCommand =
   | { type: 'SEND_REPAIR'; assetId: AssetId }
   | { type: 'MARK_READ'; messageId: number }
   | { type: 'NEW_GAME'; seed?: number }
+  | { type: 'CASE_ACTION'; caseId: number; action: 'release' | 'expedite' }
+  | { type: 'RUMOR_ACTION'; rumorId: number; action: 'deny' | 'confirm' | 'investigate' }
+  | { type: 'FACTION_ACTION'; factionId: number; action: 'negotiate' | 'coopt' | 'infiltrate' | 'arrest_leader' | 'dissolve'; demand?: DemandKind }
+  | { type: 'CONVENE_COUNCIL' }
+  | { type: 'COUNCIL_CHOICE'; proposalId: string }
   | { type: 'SPAWN_EVENT'; eventId: string; floor?: FloorId; assetId?: AssetId }
-  | { type: 'DEBUG'; action: 'fail' | 'resources' | 'unrest' | 'accident'; target?: string }
+  | { type: 'DEBUG'; action: 'fail' | 'resources' | 'unrest' | 'accident' | 'faction' | 'rumor' | 'arrest'; target?: string }
   | { type: 'SAVE' }
   | { type: 'LOAD' };
 
@@ -493,6 +586,8 @@ export interface FloorView {
   activity: { work: number; walk: number; eat: number; sleep: number; leisure: number };
   incidentCount: number;
   repairing: boolean;
+  rumor: number; // portée maximale d'une rumeur active (0-1)
+  factionSymbol?: string; // tags d'une faction (visibles même non identifiée)
   managerName?: string;
   managerId?: CitizenId;
 }
@@ -612,4 +707,68 @@ export interface Snapshot {
   gameOver?: { day: number; reason: string; chain: string[] };
   infoAccuracy: number;
   lens: number;
+  cases: CaseView[];
+  rumors: RumorView[];
+  factions: FactionView[];
+  signals: { floor: FloorId; text: string }[];
+  council?: CouncilView;
+  councilReadyInHours: number;
+}
+
+export interface CaseView {
+  id: number;
+  defendantId: CitizenId;
+  name: string;
+  charge: string;
+  evidence: number;
+  status: Case['status'];
+  verdict?: Verdict;
+  hoursToTrial: number;
+  daysLeft?: number;
+  forced?: boolean;
+  appealed?: boolean;
+  notes: string[];
+  popularity: number;
+}
+
+export interface RumorView {
+  id: number;
+  text: string;
+  truth: RumorTruth | 'unknown';
+  status: Rumor['status'];
+  reach: number; // moyenne perçue
+  floors: { id: FloorId; label: string; reach: number }[];
+  ageHours: number;
+  investigating: boolean;
+  denied?: boolean;
+  originName?: string;
+}
+
+export interface FactionView {
+  id: number;
+  name: string;
+  symbol: string;
+  sectorName: string;
+  floors: string[];
+  leaderId: CitizenId;
+  leaderName: string;
+  members: number;
+  memberIds?: CitizenId[];
+  influence: number;
+  stage: number;
+  stageLabel: string;
+  demands: { kind: DemandKind; label: string }[];
+  infiltrated: boolean;
+  status: Faction['status'];
+}
+
+export interface CouncilView {
+  title: string;
+  summary: string;
+  topic: string;
+  resolved?: string;
+  ageHours: number;
+  proposals: { id: string; label: string; hint: string; backers: OfficeId[]; opposers: OfficeId[] }[];
+  statements: { officeId: OfficeId; title: string; name: string; portrait?: string; sector: SectorId; look: number; proposalId: string; text: string }[];
+  alliances: { a: string; b: string; value: number }[];
 }

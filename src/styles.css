@@ -1250,3 +1250,87 @@ p {
 .stage-sealed .pact-btn.next {
   visibility: hidden;
 }
+
+/* ---------------------------------------------------------------- Étape 2 : justice, opinion, conseil */
+.card.case,
+.card.rumor,
+.card.faction {
+  margin-bottom: 8px;
+}
+.reach-strip {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  gap: 2px;
+  height: 8px;
+}
+.reach-strip span {
+  background: var(--orange);
+  border-radius: 1px;
+}
+.signals {
+  border-color: var(--warn);
+  margin-bottom: 8px;
+}
+.faction-symbol {
+  color: var(--bad);
+  font-size: 16px;
+}
+.faction.stage-3,
+.faction.stage-4 {
+  border-color: var(--bad);
+}
+.stage-track {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+  margin: 6px 0;
+}
+.stage-track span {
+  height: 5px;
+  background: #222b36;
+  border-radius: 2px;
+}
+.stage-track span.on {
+  background: var(--orange);
+}
+.btn.demand {
+  margin: 4px 4px 0 0;
+}
+.council-voices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+.voice {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+}
+.voice.won {
+  border-color: var(--ok);
+}
+.voice.lost {
+  opacity: 0.6;
+}
+.council-proposals {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.proposal.chosen {
+  border-color: var(--accent);
+}
+.backers .portrait {
+  border-radius: 50%;
+}

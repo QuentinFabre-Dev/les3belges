@@ -30,7 +30,7 @@ export interface RenderSettings {
 }
 
 const SURFACE_H = 300;
-const ROOM_TEXTURES = ['admin', 'servers', 'security', 'canteen', 'residential', 'hydroponics', 'medical', 'workshop', 'water', 'generator', 'depot', 'mine', 'cafe_main', 'cafe_mid', 'cafe_main_screen', 'cafe_mid_screen'];
+const ROOM_TEXTURES = ['court', 'council', 'admin', 'servers', 'security', 'canteen', 'residential', 'hydroponics', 'medical', 'workshop', 'water', 'generator', 'depot', 'mine', 'cafe_main', 'cafe_mid', 'cafe_main_screen', 'cafe_mid_screen'];
 const WORK_FLOORS_24H = new Set<SectorId>(['water', 'energy', 'medical', 'security']);
 
 type Mode = 'idle' | 'walk' | 'act' | 'stairs';
@@ -77,6 +77,7 @@ interface FloorGfx {
   lockText: Text;
   lockdown: LockdownLevel;
   flicker: number;
+  tags: Text[];
 }
 
 export class SiloView {
@@ -229,6 +230,18 @@ export class SiloView {
         if (!rect) continue;
         root.addChild(this.buildScreen(tex, rect, wx, mirrored, f.index));
       }
+      // Tags d'une faction : signal avant-coureur visible dans le décor.
+      const tags: Text[] = [];
+      for (let k = 0; k < 3; k++) {
+        const t = new Text({ text: '', style: { fontFamily: 'serif', fontSize: 14, fontWeight: '700', fill: 0xb02a20 } });
+        t.resolution = 4;
+        t.alpha = 0.75;
+        t.rotation = (k - 1) * 0.12;
+        t.position.set([40, SHAFT_X + SHAFT_W + 150, 190][k], [34, 46, 58][k]);
+        t.visible = false;
+        tags.push(t);
+        root.addChild(t);
+      }
       root.addChild(dark, red, lock, highlight);
       this.floorLayer.addChild(root);
 
@@ -241,7 +254,7 @@ export class SiloView {
       name.anchor.set(1, 0);
       lockText.anchor.set(1, 0);
       this.ui.addChild(badge, label, name, lockText);
-      this.floors.push({ index: f.index, id: f.id, root, dark, red, lock, highlight, label, name, badge, lockText, lockdown: 'open', flicker: 0 });
+      this.floors.push({ index: f.index, id: f.id, root, dark, red, lock, highlight, label, name, badge, lockText, lockdown: 'open', flicker: 0, tags });
     }
 
     this.elevator.rect(0, 0, 9, 16).fill(0x3a3f45).rect(1, 2, 7, 9).fill(0xffd27a).rect(0, 15, 9, 1).fill(0x1a1c1f);
@@ -502,6 +515,10 @@ export class SiloView {
       if (f.lockdown === 'full') redA = Math.max(redA, 0.05 + 0.03 * Math.sin(time * 2));
       g.red.alpha = this.settings.lighting === 'low' ? redA * 0.6 : redA;
       if (g.lockdown !== 'open') g.lock.alpha = 0.75 + 0.25 * Math.sin(time * 4);
+      g.tags.forEach((t, k) => {
+        t.visible = !!f.factionSymbol && (k === 0 || f.unrest >= 1 || k < 2);
+        if (t.visible && t.text !== f.factionSymbol) t.text = f.factionSymbol!;
+      });
     }
 
     // Écrans : lente dérive de la caméra extérieure, saleté, parasites, coupure.
@@ -786,8 +803,8 @@ export class SiloView {
       n.mode = 'walk';
       n.tx = this.randomSpot(n.floor);
       if (Math.random() < 0.05 && !n.leaving) this.leave(n);
-    } else if (r < 0.65) {
-      // Discussion avec un voisin
+    } else if (r < 0.65 + f.rumor * 0.15) {
+      // Discussion avec un voisin (plus fréquente quand une rumeur circule sur l'étage)
       const other = this.npcs.find((o) => o !== n && o.active && o.floor === n.floor && o.mode !== 'stairs' && o.task === 'wander' && Math.abs(o.x - n.x) < 30);
       n.mode = 'act';
       n.act = 'talk';
@@ -798,7 +815,7 @@ export class SiloView {
         other.mode = 'act';
         other.act = 'idle';
         other.timer = n.timer;
-        if (this.effSecondary !== 'min' && Math.random() < 0.5) this.showBubble(n, false);
+        if (this.effSecondary !== 'min' && Math.random() < 0.4 + f.rumor * 0.6) this.showBubble(n, f.rumor > 0.5 && Math.random() < 0.3);
       }
     } else if (r < 0.75) {
       n.mode = 'act';

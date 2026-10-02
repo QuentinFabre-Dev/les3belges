@@ -7,7 +7,7 @@ const worker = new Worker(new URL('../sim/worker.ts', import.meta.url), { type: 
 let nextRequest = 1;
 const pending = new Map<number, (data: unknown) => void>();
 
-export type View = 'global' | 'floors' | 'population' | 'resources' | 'infrastructure' | 'incidents' | 'decisions' | 'institutions' | 'policies' | 'messages' | 'journal' | 'settings';
+export type View = 'global' | 'floors' | 'population' | 'resources' | 'infrastructure' | 'incidents' | 'decisions' | 'institutions' | 'council' | 'justice' | 'opinion' | 'policies' | 'messages' | 'journal' | 'settings';
 
 interface Toast {
   id: number;

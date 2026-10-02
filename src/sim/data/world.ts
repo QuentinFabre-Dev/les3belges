@@ -22,7 +22,7 @@ export interface FloorDef {
 export const FLOORS: FloorDef[] = [
   { id: 'cafeteria', label: '-01', name: 'Grand réfectoire', sector: 'residential', left: 'cafe_main', right: 'cafe_main', capacity: 40, basePower: 30, cafeteria: 'main' },
   { id: 'admin', label: '-02', name: 'Administration', sector: 'admin', left: 'admin', right: 'servers', capacity: 50, basePower: 40 },
-  { id: 'security', label: '-03', name: 'Sécurité', sector: 'security', left: 'security', right: 'security', capacity: 50, basePower: 20 },
+  { id: 'security', label: '-03', name: 'Sécurité & justice', sector: 'security', left: 'security', right: 'court', capacity: 50, basePower: 20 },
   { id: 'res_high', label: '-04', name: 'Résidentiel haut', sector: 'residential', left: 'residential', right: 'residential', capacity: 260, basePower: 25 },
   { id: 'agriculture', label: '-05', name: 'Agriculture', sector: 'agriculture', left: 'hydroponics', right: 'hydroponics', capacity: 60, basePower: 70 },
   { id: 'res_mid', label: '-06', name: 'Résidentiel', sector: 'residential', left: 'residential', right: 'residential', capacity: 280, basePower: 30 },

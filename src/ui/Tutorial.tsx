@@ -96,7 +96,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'Gouverner',
-    text: 'Institutions : nommer, révoquer, organiser une élection. Politiques : rations, quotas miniers, priorités de délestage, communication de crise, audits. Population : chaque habitant a une famille, des relations et une mémoire.',
+    text: 'Institutions : nommer, révoquer, organiser une élection. Conseil : réunir vos responsables, entendre leurs désaccords, trancher. Justice : chaque arrestation mène à un procès. Opinion : rumeurs et factions qui naissent de la rancœur. Politiques : rations, quotas, délestage, communication.',
     target: '[data-tut=nav-institutions]',
     place: 'right',
   },

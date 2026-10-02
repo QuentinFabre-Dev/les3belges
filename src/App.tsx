@@ -10,6 +10,7 @@ import { Sidebar } from './ui/Sidebar';
 import { SiloCanvas } from './ui/SiloCanvas';
 import { TopBar } from './ui/TopBar';
 import { InstitutionsPanel, PoliciesPanel } from './ui/panels/Governance';
+import { CouncilPanel, JusticePanel, OpinionPanel } from './ui/panels/Society';
 import { DecisionsPanel, FloorsPanel, IncidentsPanel, InfrastructurePanel, JournalPanel, MessagesPanel, ResourcesPanel, SettingsPanel } from './ui/panels/Panels';
 import { PopulationPanel } from './ui/panels/Population';
 import type { Speed } from './sim/types';
@@ -22,6 +23,9 @@ const PANELS = {
   incidents: IncidentsPanel,
   decisions: DecisionsPanel,
   institutions: InstitutionsPanel,
+  council: CouncilPanel,
+  justice: JusticePanel,
+  opinion: OpinionPanel,
   policies: PoliciesPanel,
   messages: MessagesPanel,
   journal: JournalPanel,

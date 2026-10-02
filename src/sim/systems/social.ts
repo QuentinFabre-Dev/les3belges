@@ -5,6 +5,8 @@ import type { Citizen, CitizenId, FloorState, Trait, UnrestLevel, WorldState } f
 import { CAFETERIAS, FLOORS } from '../data/world';
 import { avg, dayOf, fullName, hasTag, holder, hourOf, journal, message, openIncident, resolveIncidents } from '../util';
 import { schedule } from './infrastructure';
+import { openCase } from './justice';
+import { factionPressure } from './factions';
 
 const SENSITIVITY: Partial<Record<Trait, number>> = { solidary: 1.35, altruistic: 1.2, impulsive: 1.25, calm: 0.75, individualistic: 0.7, pragmatic: 0.9 };
 const sensitivity = (c: Citizen) => c.traits.reduce((m, t) => m * (SENSITIVITY[t] ?? 1), 1);
@@ -71,7 +73,17 @@ export function populationHour(ctx: Ctx) {
     if (w.policies.rations === 'reduced') grievanceGain += 0.06;
     if (home.cleanliness < 40) grievanceGain += 0.04;
     if (home.lockdown === 'full') grievanceGain += 0.12;
-    c.grievance = clamp(c.grievance + grievanceGain - 0.03);
+    // Mécontentement de fond : la rancœur ne retombe que jusqu'à ce niveau, propre à chaque vie.
+    let baseline = 8;
+    if (c.sector === 'mines') baseline += 10 * w.policies.mineQuota;
+    if (c.sector === 'sanitation' || c.sector === 'supplies') baseline += 5;
+    if (c.fatigue > 40) baseline += (c.fatigue - 40) * 0.5;
+    if (home.residents > home.capacity * 0.95) baseline += 6;
+    if (w.policies.rations === 'reduced') baseline += 8;
+    baseline += (1 - w.lens) * 8;
+    if (c.flags.includes('ex_prisoner')) baseline += 10;
+    const decay = c.grievance > baseline ? 0.03 : 0;
+    c.grievance = clamp(c.grievance + grievanceGain - decay + (c.grievance < baseline ? 0.02 : 0));
 
     // Confiance : dérive vers la légitimité, plombée par la colère
     const trustTarget = legit * 0.85 - c.anger * 0.25 + (c.traits.includes('loyal') ? 10 : 0) - (c.traits.includes('skeptical') ? 8 : 0);
@@ -223,8 +235,8 @@ export function socialHour(ctx: Ctx) {
     const security = w.floors.find((x) => x.id === 'security')!;
     const patrol = f.lockdown === 'full' ? 14 : f.lockdown === 'controlled' ? 7 : 0;
     const pressure = f.anger * 0.3 + f.grievance * 0.3 + f.fear * 0.1 + cohesion * 12 + leader * 0.12 - f.trust * 0.22 - patrol - (security.power > 0.5 ? 2 : 0);
-    f.unrestPressure = pressure;
-    const target: UnrestLevel = pressure < 16 ? 0 : pressure < 24 ? 1 : pressure < 32 ? 2 : pressure < 40 ? 3 : pressure < 48 ? 4 : 5;
+    f.unrestPressure = pressure + factionPressure(ctx, f.id);
+    const target: UnrestLevel = f.unrestPressure < 16 ? 0 : pressure < 24 ? 1 : pressure < 32 ? 2 : pressure < 40 ? 3 : pressure < 48 ? 4 : 5;
     // L'escalade est progressive (un palier à la fois), la désescalade aussi.
     if (target > f.unrest && ctx.rng.chance(0.25)) setUnrest(ctx, f, (f.unrest + 1) as UnrestLevel);
     else if (target < f.unrest && ctx.rng.chance(0.2)) setUnrest(ctx, f, (f.unrest - 1) as UnrestLevel);
@@ -422,6 +434,7 @@ export function arrestCitizen(ctx: Ctx, id: CitizenId, reason: string, legitimac
   propagate(ctx, id, severity, 'arrest', legitimacy);
   w.memories.push({ tick: w.tick, type: 'arrest', text: `Arrestation de ${fullName(c)} : ${reason}`, severity: severity / 100, perceivedLegitimacy: legitimacy });
   journal(w, `Arrestation de ${fullName(c)} — ${reason}`, 'attention', c.homeFloor);
+  openCase(ctx, id, reason, legitimacy);
   if (c.officeId) vacate(ctx, c.officeId, `Arrestation de ${fullName(c)}`);
 }
 

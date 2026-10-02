@@ -48,11 +48,15 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 - ✅ Le nettoyage (« Je veux sortir ») rend l'écran net ; événement « L’écran se voile » : attendre un volontaire, envoyer un condamné, ou éteindre les écrans
 - ⬜ Quand le silo grandira (étape 3) : une cafétéria tous les ~10 étages, files d'attente aux heures de repas, écran du grand réfectoire comme lieu de rassemblement lors des crises
 
-### Étape 2 — Cœur systémique
-- ⬜ Justice complète : arrestation → détention → procès → verdict → appel (§150, §169–171)
-- ⬜ Rumeurs propagées dans le graphe social, vraies ou fausses, traçables par la DSI (§112–114)
-- ⬜ Factions émergentes et insurrection organisée par étapes, signaux précurseurs (§126–127, §134)
-- ⬜ Conseil du silo / cellule de crise : avis, désaccords, alliances (§162–163, §187, §191–192)
+### Étape 2 — Cœur systémique (livrée)
+- ✅ **Justice** (§150, §169–171) : toute arrestation ouvre un dossier (solidité selon enquêtes, infiltration, flagrant délit) → 2 jours de détention → procès. Laisser le juge trancher, imposer une condamnation (précédent, juge désavoué si dossier faible), gracier, ou nettoyage (pouvoirs d'urgence). Appels, peines purgées, cellules surpeuplées. Panneau Justice. Tribunal visible à l'étage -03.
+- ✅ **Rumeurs** (§112–114) : 9 rumeurs nées de faits vrais, partiels ou inventés ; propagation d'étage en étage et brassage dans les réfectoires aux heures de repas ; effets sur peur, colère, confiance. Vérité inconnue sans enquête DSI ; démentir une rumeur vraie peut éclater plus tard, confirmer une rumeur fausse aussi. Plus de conciliabules dans le silo là où une rumeur circule.
+- ✅ **Factions** (§126–127, §134) : émergence autour d'un meneur quand un secteur est rancunier, recrutement par les liens d'amitié, 5 stades (cercle, mouvement, organisation, préparation, insurrection), revendications, ralentissements puis sabotages. Signaux faibles avant identification (tags sur les murs du silo, absentéisme). Réponses : céder, coopter, infiltrer, arrêter le meneur (martyr possible), dissoudre (pouvoirs d'urgence).
+- ✅ **Conseil du silo** (§162–163, §187, §191–192) : sujet le plus pressant, prise de position argumentée de chaque responsable (secteur, traits, loyauté), options avec leurs soutiens, alliances et rivalités qui évoluent ; ceux qu'on suit gagnent en loyauté.
+- ✅ Mécontentement de fond : la rancœur ne retombe plus à zéro (fatigue, mines, surpeuplement, rations, écran sale, ex-détenus).
+- ✅ Tests dédiés (`tests/society.test.ts`) et nouveaux outils debug (faction, rumeur, arrestation).
+
+**Mesures** (12 graines × 60 jours) : passif 34 j médian (0/12) ; joueur automatique 12/12 mais stabilité min. moyenne 35 (51 avant l'étape 2) — il ignore rumeurs et factions, qui pèsent désormais.
 
 ### Étape 3 — Échelles de lecture & contenu
 - ⬜ Vue Salle (postes, machines, opérateurs) (§5)
@@ -111,19 +115,20 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 | 66–75 | Génératrice, énergie de secours, peur, communication de crise | ✅ | |
 | 80–99 | Blocus d'étage | 🟡 | 3 niveaux, navigation, coûts, contrebande ; réouverture par étapes et exceptions fines à faire |
 | 100–111 | Variables psychologiques, confiance par institution, leaders informels | 🟡 | Confiance admin + sécurité ; confiance par institution à étendre |
-| 112–115 | Rumeurs, communication officielle | 🟡 | Communication faite ; rumeurs = étape 2 |
+| 112–115 | Rumeurs, communication officielle | ✅ | Propagation par étages et réfectoires, vérité cachée, démentis |
 | 116–122 | Mémoire collective/individuelle, griefs, promesses | 🟡 | Mémoires et promesses ; griefs typés à faire |
-| 123–129 | Protestation → insurrection, réponses | 🟡 | Paliers 0–5 ; organisation/leaders = étape 2 |
+| 123–129 | Protestation → insurrection, réponses | ✅ | Paliers 0–5 + factions organisées, signaux précurseurs |
 | 130–133 | Micro-management, élections, responsabilité perçue | 🟡 | |
-| 134 | Factions | ⬜ | Étape 2 |
+| 134 | Factions | ✅ | Émergence, recrutement, stades, revendications |
 | 135–138 | Performance sociale, promotion dynamique | ✅ | Tick social horaire, propagation bornée, agitateurs promus |
-| 146–199 | Gouvernance : institutions, conseil, lois, précédents, urgence, corruption, audits, transparence | 🟡 | Pouvoirs d'urgence, audits, transparence, délestage, quotas ; conseil, lois modifiables, précédents, matrice des pouvoirs à faire |
-| 200 | Cycle politique, justice, progression, fins, secrets | ⬜ | Étapes 2–4 |
+| 146–199 | Gouvernance : institutions, conseil, lois, précédents, urgence, corruption, audits, transparence | 🟡 | Conseil, alliances, justice, précédents (juge contourné), urgence, audits, transparence ; lois modifiables et matrice des pouvoirs à faire |
+| 200 | Cycle politique, justice, progression, fins, secrets | 🟡 | Justice faite ; progression, fins, secrets = étapes 3–4 |
 
 ---
 
 ## Journal des livraisons
 
 - **Étape 0** — socle jouable : simulation, rendu, UI, assets, tests headless.
+- **Étape 2** — justice, rumeurs, factions, conseil (2 images générées : tribunal, salle du conseil ; une génération bloquée relancée).
 - **Étape 1 bis** — réfectoires avec écran sur l'extérieur (3 images générées : grand réfectoire ×2 essais, cafétéria des profondeurs), netteté des capteurs et nettoyage.
 - **Étape 1** — intro du Pacte (2 images générées : livre fermé, livre ouvert créé à partir du fermé), tutoriel guidé, mode debug, banc d'équilibrage, ajustements.

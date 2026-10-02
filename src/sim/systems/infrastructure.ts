@@ -4,8 +4,7 @@ import type { InfrastructureAsset } from '../types';
 import { floorById, hasTag, holder, hourOf, journal, message, openIncident, resolveIncidents } from '../util';
 
 export function schedule(ctx: Ctx, eventId: string, data: { floor?: string; assetId?: string; subjectId?: number } = {}) {
-  ctx.scheduled.push(eventId);
-  ctx.scheduledCtx[eventId] = data;
+  ctx.scheduled.push({ id: eventId, data });
 }
 
 export function riskPerDay(a: InfrastructureAsset) {
