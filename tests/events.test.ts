@@ -13,7 +13,7 @@ describe('catalogue d’événements', () => {
         const e = new Engine(createWorld(7));
         for (let i = 0; i < 144; i++) e.tick();
         e.w.pending = [];
-        spawn(e.ctx, def, {});
+        spawn(e.ctx, def, { vars: { memory: 'La Grande Panne de l’an 142', memoryId: 1 } });
         const p = e.w.pending.find((x) => x.defId === def.id);
         if (!p) {
           skipped.add(def.id); // contexte introuvable (pas de sujet, etc.) : acceptable

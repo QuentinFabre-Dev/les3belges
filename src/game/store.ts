@@ -19,11 +19,11 @@ const SETTINGS_KEY = 'silo-01:settings';
 function loadSettings(): RenderSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return { density: 150, secondary: 'standard', lighting: 'medium', adaptive: true, ...JSON.parse(raw) };
+    if (raw) return { density: 150, secondary: 'standard', lighting: 'medium', adaptive: true, volume: 0.6, muted: false, ...JSON.parse(raw) };
   } catch {
     /* stockage indisponible */
   }
-  return { density: 150, secondary: 'standard', lighting: 'medium', adaptive: true };
+  return { density: 150, secondary: 'standard', lighting: 'medium', adaptive: true, volume: 0.6, muted: false };
 }
 
 export type Phase = 'intro' | 'tutorial' | 'play';

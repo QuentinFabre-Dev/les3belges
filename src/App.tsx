@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { send, setFlag, useGame } from './game/store';
 import { Intro } from './ui/Intro';
+import { sound } from './audio/sound';
+import { EndScreen, YearReportModal } from './ui/Chronicle';
 import { Tutorial } from './ui/Tutorial';
 import { DebugPanel } from './ui/DebugPanel';
 import { severityColor } from './ui/common';
@@ -37,7 +39,6 @@ export default function App() {
   const view = useGame((g) => g.view);
   const ready = useGame((g) => !!g.snapshot);
   const toasts = useGame((g) => g.toasts);
-  const gameOver = useGame((g) => g.snapshot?.gameOver);
   const Active = view !== 'global' ? PANELS[view] : null;
   const phase = useGame((g) => g.phase);
   const selectedRoom = useGame((g) => g.selectedRoom);
@@ -51,11 +52,34 @@ export default function App() {
   });
   const debug = new URLSearchParams(location.search).has('debug');
   // Mode debug : accès au store depuis la console (et pour les captures automatisées).
-  if (debug) (window as unknown as { silo: typeof useGame }).silo = useGame;
+  if (debug) Object.assign(window, { silo: useGame, siloSound: sound });
 
   // Joueur déjà initié : le temps démarre directement.
   useEffect(() => {
     if (phase === 'play') send({ type: 'SET_SPEED', speed: 1 });
+  }, []);
+
+  // Son : déverrouillé au premier geste, piloté par l'état du silo.
+  useEffect(() => {
+    const st = useGame.getState().settings;
+    sound.setVolume(st.volume, st.muted);
+    const unlock = () => sound.unlock();
+    const onClick = (e: MouseEvent) => {
+      if ((e.target as HTMLElement).closest('button')) sound.click();
+    };
+    window.addEventListener('pointerdown', unlock);
+    window.addEventListener('keydown', unlock);
+    window.addEventListener('click', onClick, true);
+    const unsub = useGame.subscribe((g, prev) => {
+      if (g.snapshot && g.snapshot !== prev.snapshot) sound.update(g.snapshot);
+      if (g.settings !== prev.settings) sound.setVolume(g.settings.volume, g.settings.muted);
+    });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+      window.removeEventListener('click', onClick, true);
+      unsub();
+    };
   }, []);
 
   useEffect(() => {
@@ -92,8 +116,9 @@ export default function App() {
       <RightPanel />
       {phase === 'intro' && (
         <Intro
-          onDone={(n) => {
+          onDone={(n, difficulty) => {
             setAdminName(n);
+            if (difficulty) send({ type: 'NEW_GAME', difficulty });
             setFlag('silo-01:intro-done', true);
             setPhase(localStorageFlag('silo-01:tutorial-done') ? 'play' : 'tutorial');
             if (localStorageFlag('silo-01:tutorial-done')) send({ type: 'SET_SPEED', speed: 1 });
@@ -118,30 +143,8 @@ export default function App() {
           </div>
         ))}
       </div>
-      {gameOver && (
-        <div className="modal-back">
-          <div className="modal gameover">
-            <h2>Le silo est perdu</h2>
-            <p>
-              Jour {gameOver.day} — {gameOver.reason}
-            </p>
-            <h4>Derniers événements marquants</h4>
-            {gameOver.chain.map((c, i) => (
-              <div key={i} className="small cause">
-                ↳ {c}
-              </div>
-            ))}
-            <div className="row gap">
-              <button className="btn" onClick={() => send({ type: 'NEW_GAME' })}>
-                Nouvelle partie
-              </button>
-              <button className="btn" onClick={() => send({ type: 'LOAD' })}>
-                Charger la dernière sauvegarde
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <YearReportModal />
+      <EndScreen />
     </div>
   );
 }

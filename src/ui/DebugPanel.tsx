@@ -33,6 +33,12 @@ export function DebugPanel() {
       <button className="btn small" onClick={() => send({ type: 'DEBUG', action: 'arrest' })}>
         Arrestation
       </button>
+      <button className="btn small" onClick={() => send({ type: 'DEBUG', action: 'year' })}>
+        Fin d’année
+      </button>
+      <button className="btn small" onClick={() => send({ type: 'DEBUG', action: 'victory' })}>
+        Fin de mandat
+      </button>
       <button className="btn small" onClick={() => send({ type: 'DEBUG', action: 'resources' })}>
         Stocks pleins
       </button>

@@ -28,6 +28,8 @@ export interface RenderSettings {
   secondary: 'min' | 'standard' | 'max';
   lighting: 'low' | 'medium' | 'high';
   adaptive: boolean;
+  volume: number; // 0-1
+  muted: boolean;
 }
 
 const SURFACE_H = 300;

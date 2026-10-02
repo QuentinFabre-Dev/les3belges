@@ -67,12 +67,18 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 - ✅ Ambiance vivante (`src/render/ambient.ts`) : lampes, voyants et plantes détectés dans les pixels des images ; halos qui respirent et vacillent, secours rouges en panne ; voyants qui clignotent (s'éteignent sans courant) ; cultures en cycle de 6 jours (pousse, tomates qui mûrissent, récolte en vague, jaunissent en cas de maladie ou de manque d'eau) et qui ondulent ; vapeur (blanchisserie, cuisines aux heures de repas), fumée de la génératrice en surcharge/panne, poussière des mines (verdâtre en cas de gaz), gouttes sous les pompes et du plafond des étages usés, cadrans de la génératrice qui suivent la charge ; respecte les réglages effets/éclairage et la dégradation adaptative
 - ✅ Test catalogue : chaque événement s'ouvre et chacun de ses choix se résout sans erreur ni placeholder (`tests/events.test.ts`)
 
-### Étape 4 — Jeu complet
-- ⬜ Progression sur plusieurs années : vieillissement, générations, mémoire collective (§116)
-- ⬜ Fins possibles et conditions de victoire
-- ⬜ Modes de difficulté (§198)
-- ⬜ Son et ambiance (silence de la génératrice, alarmes) (§70)
-- ⬜ Déploiement en ligne
+### Étape 4 — Jeu complet (livrée)
+- ✅ Calendrier du silo : années de 48 jours (an 142, 143…), mandat de 3/4/5 ans selon la difficulté ; maire élu pour 2 ans
+- ✅ Démographie sur plusieurs années : vieillissement au Jour de la Fondation, passage à l'âge adulte (affectation à 16 ans), retraite à 65 ans (perte d'expertise), mortalité naturelle par âge, loterie des naissances (politique, article IV du Pacte)
+- ✅ Mémoire collective (§116) : la chronique retient les crises (accidents miniers, Grande Panne, faim, soif, fièvre, émeutes, soulèvement, blocus, procès imposés, morts de titulaires) ; une crise du même type ravive les anciennes (peur, rancœur, confiance chez ceux qui les ont vécues) ; effacement annuel selon la difficulté ; commémoration (officielle, discrète, interdite)
+- ✅ Bilan annuel (pause automatique) : population, naissances, décès, arrestations, stabilité, souvenirs de l'année
+- ✅ Fins : 4 défaites (Le silo se vide, Le Soulèvement, Destitution, Le Silence — génératrice jamais rallumée) et 4 fins de mandat selon le style de gouvernance (L'Âge du Pacte, L'Ordre de fer, Le silo tient, et la fin secrète La Vérité) ; épilogue, statistiques, chronique ; partie libre après la victoire
+- ✅ Secrets : chaîne des archives (fichier effacé → « Silo 01 sur 50 » → révéler, garder au conseil avec risque de fuite, ou effacer)
+- ✅ Modes de difficulté (§198) : Accessible / Standard / Difficile — fiabilité des données, franchise des responsables, vitesse des rumeurs, tolérance, mémoire sociale, vitesse des crises politiques, durée du mandat ; choisis comme « clause du mandat » à la signature du Pacte ou à la nouvelle partie
+- ✅ Son procédural (§70) : bourdonnement de la génératrice (plus fort quand on la regarde, ralentit puis silence en panne, redémarrage), ventilation, rumeur de foule selon les troubles, gouttes (audibles surtout dans le silence), alarmes, signaux d'interface, cloche du Nouvel An ; volume et coupure dans les paramètres
+- ✅ Reprise automatique de la dernière partie au chargement de la page
+- ✅ Déploiement : workflow GitHub Pages (tests + build sous `/<dépôt>/`), déclenché sur `main` ou à la main
+- ✅ Équilibrage long : trêve de 8 jours après une concession à une faction ; la légitimité tient compte des résultats (silo nourri, abreuvé, éclairé). Banc 200 jours : joueur automatique naïf 5/6 mandats complets en Standard, 4/4 en Accessible, 0/4 en Difficile ; joueur passif ≈ 35 jours
 
 ---
 
@@ -120,18 +126,21 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 | 80–99 | Blocus d'étage | 🟡 | 3 niveaux, navigation, coûts, contrebande ; réouverture par étapes et exceptions fines à faire |
 | 100–111 | Variables psychologiques, confiance par institution, leaders informels | 🟡 | Confiance admin + sécurité ; confiance par institution à étendre |
 | 112–115 | Rumeurs, communication officielle | ✅ | Propagation par étages et réfectoires, vérité cachée, démentis |
-| 116–122 | Mémoire collective/individuelle, griefs, promesses | 🟡 | Mémoires et promesses ; griefs typés à faire |
+| 116–122 | Mémoire collective/individuelle, griefs, promesses | ✅ | Chronique des crises qui se ravivent, commémorations, mémoires individuelles, promesses ; griefs typés par faction |
 | 123–129 | Protestation → insurrection, réponses | ✅ | Paliers 0–5 + factions organisées, signaux précurseurs |
 | 130–133 | Micro-management, élections, responsabilité perçue | 🟡 | |
 | 134 | Factions | ✅ | Émergence, recrutement, stades, revendications |
 | 135–138 | Performance sociale, promotion dynamique | ✅ | Tick social horaire, propagation bornée, agitateurs promus |
 | 146–199 | Gouvernance : institutions, conseil, lois, précédents, urgence, corruption, audits, transparence | 🟡 | Conseil, alliances, justice, précédents (juge contourné), urgence, audits, transparence ; lois modifiables et matrice des pouvoirs à faire |
-| 200 | Cycle politique, justice, progression, fins, secrets | 🟡 | Justice faite ; progression, fins, secrets = étape 4 |
+| 70 | Effet psychologique de la génératrice | ✅ | Visible (lumières, secours rouges), audible (silence, alarmes), systémique (peur) |
+| 198 | Modes de difficulté liés à la gouvernance | ✅ | Accessible / Standard / Difficile |
+| 200 | Cycle politique, justice, progression, fins, secrets | ✅ | Élections, justice, années, 8 fins, secret des archives ; d'autres secrets possibles |
 
 ---
 
 ## Journal des livraisons
 
+- **Étape 4** — années, démographie, mémoire collective, bilans, 8 fins, difficulté, son procédural, déploiement GitHub Pages (aucune image générée).
 - **Ambiance** — animation du décor des salles sans nouvelle image (analyse des pixels + émetteurs placés à la main).
 - **Étape 3** — 30 étages / 3 000 habitants, 3 réfectoires, vue Salle, vue Personne, 40 nouveaux événements (5 images générées : école, bazar, quartiers, blanchisserie, serre ≈ 0,15 $).
 - **Étape 0** — socle jouable : simulation, rendu, UI, assets, tests headless.

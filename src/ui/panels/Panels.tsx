@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import { DIFFICULTY } from '../../sim/data/difficulty';
+import { START_YEAR, YEAR_DAYS } from '../../sim/data/world';
+import { ChronicleList, NewGameDialog } from '../Chronicle';
 import { send, useGame } from '../../game/store';
 import { Bar, Icon, Panel, Sparkline, fmt, severityColor, severityLabel, signed } from '../common';
 import { DecisionCard } from '../RightPanel';
@@ -277,13 +281,16 @@ export function JournalPanel() {
   const entries = s.journal.slice().reverse();
   return (
     <Panel title="Journal du silo" onClose={close}>
+      <h3>Mémoire collective</h3>
+      <ChronicleList />
+      <h3>Journal</h3>
       {entries.map((j, k) => {
-        const day = Math.floor((j.tick + 36) / 144) + 1;
+        const d = Math.floor((j.tick + 36) / 144); // jours écoulés depuis la prise de fonction
         const min = ((j.tick + 36) % 144) * 10;
         return (
           <div key={k} className="journal-row">
             <span className="muted mono">
-              J{day} {String(Math.floor(min / 60)).padStart(2, '0')}:{String(min % 60).padStart(2, '0')}
+              An {START_YEAR + Math.floor(d / YEAR_DAYS)} J{(d % YEAR_DAYS) + 1} {String(Math.floor(min / 60)).padStart(2, '0')}:{String(min % 60).padStart(2, '0')}
             </span>
             <span className="dot" style={{ background: severityColor(j.severity) }} />
             <span>{j.text}</span>
@@ -295,6 +302,8 @@ export function JournalPanel() {
 }
 
 export function SettingsPanel() {
+  const s = useGame((g) => g.snapshot)!;
+  const [newGame, setNewGame] = useState(false);
   const settings = useGame((g) => g.settings);
   const set = useGame((g) => g.setSettings);
   return (
@@ -307,15 +316,15 @@ export function SettingsPanel() {
         <button className="btn" onClick={() => send({ type: 'LOAD' })}>
           Charger
         </button>
-        <button
-          className="btn danger"
-          onClick={() => {
-            if (confirm('Commencer une nouvelle partie ? La partie en cours sera perdue si elle n’est pas sauvegardée.')) send({ type: 'NEW_GAME' });
-          }}
-        >
+        <button className="btn danger" onClick={() => setNewGame(true)}>
           Nouvelle partie
         </button>
       </div>
+      {newGame && <NewGameDialog onClose={() => setNewGame(false)} />}
+      <p className="small muted">
+        Difficulté : {DIFFICULTY[s.difficulty].label} — {DIFFICULTY[s.difficulty].summary} Mandat : année {s.calendar.mandateYear} sur {s.calendar.mandateYears}
+        {s.calendar.freeMode ? ' (partie libre)' : ''}.
+      </p>
       <p className="small muted">Sauvegarde automatique chaque jour de jeu (IndexedDB, dans ce navigateur).</p>
       <div className="row gap wrap">
         <button className="btn" onClick={() => useGame.getState().setPhase('intro')}>
@@ -332,6 +341,17 @@ export function SettingsPanel() {
           Relancer le tutoriel
         </button>
       </div>
+      <h3>Son</h3>
+      <div className="row gap wrap" style={{ alignItems: 'center' }}>
+        <button className={`btn small ${settings.muted ? 'active' : ''}`} onClick={() => set({ muted: !settings.muted })}>
+          {settings.muted ? 'Son coupé' : 'Couper le son'}
+        </button>
+        <label className="row gap small" style={{ alignItems: 'center' }}>
+          Volume
+          <input type="range" min={0} max={1} step={0.05} value={settings.volume} onChange={(e) => set({ volume: Number(e.target.value) })} aria-label="Volume" />
+        </label>
+      </div>
+      <p className="small muted">Bourdonnement de la génératrice (qui s’arrête net en cas de panne), ventilation, rumeur des étages en colère, gouttes, alarmes. Tout est synthétisé en direct.</p>
       <h3>Graphismes</h3>
       <label className="field">
         <span>Densité d’habitants visibles</span>

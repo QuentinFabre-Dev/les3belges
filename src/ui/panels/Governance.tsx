@@ -185,6 +185,17 @@ export function PoliciesPanel() {
           <p className="tiny muted">Réduire préserve les stocks mais use le moral et accumule de la rancœur.</p>
         </div>
         <div className="card">
+          <h4>Loterie des naissances</h4>
+          <div className="seg">
+            {(['restricted', 'normal', 'expanded'] as const).map((v) => (
+              <button key={v} className={(p.births ?? 'normal') === v ? 'active' : ''} onClick={() => setP('births', v)}>
+                {v === 'restricted' ? 'Restreinte' : v === 'normal' ? 'Ordinaire' : 'Élargie'}
+              </button>
+            ))}
+          </div>
+          <p className="tiny muted">Article IV du Pacte. Plus de naissances : un silo qui se renouvelle, mais plus de bouches à nourrir et des logements qui se remplissent.</p>
+        </div>
+        <div className="card">
           <h4>Temps de travail</h4>
           <div className="seg">
             <button className={!p.extendedHours ? 'active' : ''} onClick={() => setP('extendedHours', false)}>

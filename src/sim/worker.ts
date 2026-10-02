@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 // Web Worker : la simulation tourne ici, découplée du rendu (60 FPS côté main thread).
 import { get, set } from 'idb-keyval';
+import { createWorld } from './create';
 import { Engine } from './engine';
 import type { Speed, WorkerMessage, WorkerRequest, WorldState } from './types';
 
@@ -24,15 +25,21 @@ async function save(silent = false) {
   }
 }
 
-async function load() {
-  const raw = await get<string>(SAVE_KEY);
-  if (!raw) {
-    post({ kind: 'toast', text: 'Aucune sauvegarde trouvée', severity: 'attention' });
-    return;
+async function load(silent = false) {
+  try {
+    const raw = await get<string>(SAVE_KEY);
+    if (!raw) {
+      if (!silent) post({ kind: 'toast', text: 'Aucune sauvegarde trouvée', severity: 'attention' });
+      return;
+    }
+    const speed = engine.speed;
+    engine.load(JSON.parse(raw) as WorldState);
+    engine.speed = speed;
+    post({ kind: 'toast', text: silent ? 'Partie reprise là où vous l’aviez laissée' : 'Partie chargée', severity: 'info' });
+    publish();
+  } catch {
+    if (!silent) post({ kind: 'toast', text: 'Sauvegarde illisible', severity: 'attention' });
   }
-  engine.load(JSON.parse(raw) as WorldState);
-  post({ kind: 'toast', text: 'Partie chargée', severity: 'info' });
-  publish();
 }
 
 self.onmessage = (ev: MessageEvent<WorkerRequest>) => {
@@ -46,8 +53,9 @@ self.onmessage = (ev: MessageEvent<WorkerRequest>) => {
   else if (cmd.type === 'LOAD') void load();
   else if (cmd.type === 'NEW_GAME') {
     const speed = engine.speed;
-    engine = new Engine();
+    engine = new Engine(createWorld(cmd.seed, cmd.difficulty));
     engine.speed = speed;
+    void save(true);
   } else engine.command(cmd);
   publish();
 };
@@ -75,3 +83,5 @@ setInterval(() => {
 }, 25);
 
 publish();
+// Reprise automatique de la dernière partie (sauvegardée chaque jour de jeu).
+void load(true);

@@ -4,6 +4,9 @@ export const TICK_MINUTES = 10;
 export const TICKS_PER_HOUR = 60 / TICK_MINUTES;
 export const TICKS_PER_DAY = 24 * TICKS_PER_HOUR;
 export const START_HOUR = 6;
+// Une année du silo dure 48 jours de jeu (le temps est compressé pour suivre plusieurs années).
+export const YEAR_DAYS = 48;
+export const START_YEAR = 142;
 
 export const POPULATION_START = 3000;
 // Facteur d'échelle : l'économie a été calibrée pour 1 400 habitants.

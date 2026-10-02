@@ -81,7 +81,9 @@ export function TopBar() {
       </div>
       <div className="clock">
         <div>
-          <div className="res-label">Jour {s.day}</div>
+          <div className="res-label" title={`Mandat : année ${s.calendar.mandateYear} sur ${s.calendar.mandateYears}${s.calendar.freeMode ? ' (partie libre)' : ''}`}>
+            An {s.calendar.year} · J{s.calendar.dayOfYear}/{s.calendar.yearDays}
+          </div>
           <div className="res-value">
             {String(s.hour).padStart(2, '0')}:{String(s.minute).padStart(2, '0')}
           </div>

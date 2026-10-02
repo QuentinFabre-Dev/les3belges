@@ -40,20 +40,24 @@ src/
       rumors.ts        Rumeurs : naissance, propagation (réfectoires), vérité cachée
       factions.ts      Factions : émergence, recrutement, stades, revendications
       council.ts       Conseil du silo : prises de position, alliances
+      years.ts         Calendrier, démographie, mémoire collective, bilans annuels, fins
       events.ts        Moteur data-driven : conditions, effets génériques, effets différés,
                        promesses, élections, nominations, blocus
     data/
       world.ts         Étages, secteurs, fonctions institutionnelles
-      events.ts        75 événements/décisions (contenu, sans code moteur)
+      events.ts        78 événements/décisions (contenu, sans code moteur)
+      difficulty.ts    Accessible / Standard / Difficile (§198)
   render/              PixiJS (main thread)
     SiloView.ts        Silo vertical, caméra/zoom, culling des étages, éclairage, blocus,
                        pool de 400 PNJ, dégradation adaptative
     sprites.ts         Sprites d'habitants procéduraux → un seul atlas (1 draw call)
     navigation.ts      Graphe des paliers + A* (le blocus bloque des arêtes)
     textures.ts        Cage d'escalier, dalles, murs, roche
+    ambient.ts         Ambiance des salles : lampes, voyants, plantes, vapeur, fumée, gouttes
+  audio/sound.ts       Son procédural Web Audio (génératrice, ventilation, foule, alarmes)
   ui/                  React + Zustand (HUD, décisions, panneaux)
   game/store.ts        Pont Worker ⇄ UI (commandes, requêtes, snapshot)
-tests/sim.test.ts      Scénarios headless (déterminisme, mort d'un mineur, panne génératrice…)
+tests/                 Scénarios headless (simulation, société, années/fins, catalogue d'événements, équilibrage)
 ```
 
 Principes respectés du document de conception :
@@ -79,7 +83,13 @@ Les salles, portraits et la surface ont été générés via le MCP Monid
 
 ## Feuille de route
 
-Silo de 30 étages (3 000 habitants, 3 réfectoires), vues Silo / Étage / Salle / Personne,
-justice, rumeurs, factions, conseil, intro du Pacte et tutoriel sont en place.
-Prochaine étape : progression sur plusieurs années, fins, niveaux de difficulté, son,
-déploiement. Détail et couverture du document de conception : `docs/PLAN.md`.
+Les quatre étapes prévues sont livrées : silo de 30 étages (3 000 habitants), vues Silo / Étage /
+Salle / Personne, justice, rumeurs, factions, conseil, années et mémoire collective, 8 fins,
+3 difficultés, son procédural. Détail et couverture du document de conception : `docs/PLAN.md`.
+
+## Mise en ligne
+
+`.github/workflows/deploy.yml` publie le jeu sur GitHub Pages à chaque push sur `main`
+(ou via « Run workflow »). Une seule fois : *Settings → Pages → Source : GitHub Actions*.
+Le jeu est alors servi à `https://<compte>.github.io/<dépôt>/`. Pour un autre hébergeur statique :
+`BASE_PATH=/chemin/ npm run build` puis publier `dist/`.

@@ -10,6 +10,8 @@ import { addTag, avg, floorById, fullName, holder, journal, openIncident } from 
 import { arrestCitizen } from './social';
 import { schedule } from './infrastructure';
 import { applyVerdict, caseOf } from './justice';
+import { remember } from './years';
+import { diff } from '../data/difficulty';
 
 export const STAGE_LABELS = ['Cercle discret', 'Mouvement', 'Organisation', 'Préparation', 'Insurrection'];
 
@@ -131,9 +133,10 @@ export function factionsDay(ctx: Ctx) {
     const alive = members.filter((c) => c.lifeState === 'alive');
     const sectorSize = Math.max(10, w.citizens.filter((c) => c.lifeState === 'alive' && c.sector === f.sector).length);
     f.influence = clamp((alive.length / sectorSize) * 60 + leader.influence * 0.4);
-    const score = avg(alive.map((c) => c.grievance)) + f.influence * 0.3 - (avg(alive.map((c) => c.trust)) - 50) * 0.3 + (f.infiltrated ? -6 : 0);
+    const score = (avg(alive.map((c) => c.grievance)) + f.influence * 0.3 - (avg(alive.map((c) => c.trust)) - 50) * 0.3 + (f.infiltrated ? -6 : 0)) * diff(w).politicalSpeed;
     const sinceStage = (w.tick - f.lastStageTick) / TICKS_PER_DAY;
-    if (f.stage < 4 && score > STAGE_THRESHOLDS[f.stage + 1] && sinceStage >= 2) setStage(ctx, f, (f.stage + 1) as Faction['stage']);
+    const truce = (f.truceUntil ?? 0) > w.tick;
+    if (f.stage < 4 && !truce && score > STAGE_THRESHOLDS[f.stage + 1] && sinceStage >= 2) setStage(ctx, f, (f.stage + 1) as Faction['stage']);
     else if (f.stage > 0 && score < STAGE_THRESHOLDS[f.stage] - 10 && sinceStage >= 2) setStage(ctx, f, (f.stage - 1) as Faction['stage']);
     if ((f.stage === 0 && score < 18 && sinceStage > 4) || alive.length < 5) {
       f.status = 'dissolved';
@@ -167,6 +170,7 @@ export function setStage(ctx: Ctx, f: Faction, stage: Faction['stage']) {
   f.lastStageTick = w.tick;
   if (stage >= 1) f.demands = computeDemands(ctx, f);
   if (stage >= 2 && !f.detected) f.detected = true; // une organisation agit au grand jour
+  if (up && stage === 4) remember(ctx, 'insurrection', 40, { floors: [...f.floorIds], sectors: [f.sector] });
   const name = f.detected ? `« ${f.name} »` : 'Un groupe non identifié';
   if (!up) {
     if (f.detected) journal(w, `${name} perd de son élan (${STAGE_LABELS[stage]}).`, 'info');
@@ -263,6 +267,7 @@ export function factionAction(ctx: Ctx, factionId: number, action: 'negotiate' |
         c.trust = clamp(c.trust + 5);
       }
       f.influence = clamp(f.influence + 6); // reconnue comme interlocutrice
+      f.truceUntil = w.tick + TICKS_PER_DAY * 8; // une concession achète du temps
       if (f.stage > 0) setStage(ctx, f, (f.stage - 1) as Faction['stage']);
       w.psychology.authority = clamp(w.psychology.authority - 2);
       journal(w, `Négociation avec « ${f.name} » : ${DEMAND_LABELS[d].toLowerCase()}.`, 'info');

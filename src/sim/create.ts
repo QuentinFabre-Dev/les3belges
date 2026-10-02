@@ -27,6 +27,7 @@ import type {
   SectorState,
   Trait,
   WorldState,
+  Difficulty,
 } from './types';
 import { journal, message } from './util';
 
@@ -105,7 +106,7 @@ function stock(real: number, capacity: number, exponent = 1) {
   return { real: Math.round(real * k), declared: Math.round(real * k), capacity: Math.round(capacity * k) };
 }
 
-export function createWorld(seed = Date.now() % 2147483647): WorldState {
+export function createWorld(seed = Date.now() % 2147483647, difficulty: Difficulty = 'standard'): WorldState {
   const rng = new Rng(seed);
   const citizens: Citizen[] = [];
   const relations: RelationshipEdge[][] = [];
@@ -347,6 +348,7 @@ export function createWorld(seed = Date.now() % 2147483647): WorldState {
       powerPriority: ['medical', 'water', 'mechanical', 'admin', 'agriculture', 'security', 'energy', 'supplies', 'mines', 'residential'],
       maintenanceFocus: 'auto',
       emergencyPowers: false,
+      births: 'normal',
     },
     incidents: [],
     pending: [],
@@ -367,6 +369,11 @@ export function createWorld(seed = Date.now() % 2147483647): WorldState {
     history: [],
     nextUid: 1,
     stats: { deaths: 0, births: 0, arrests: 0 },
+    difficulty,
+    chronicle: [],
+    yearReports: [],
+    yearReportSeen: 0,
+    yearStart: { population: citizens.length, deaths: 0, births: 0, arrests: 0, tick: 0 },
   };
 
   journal(w, 'Prise de fonction de l’administration externe du Silo-01.', 'info');

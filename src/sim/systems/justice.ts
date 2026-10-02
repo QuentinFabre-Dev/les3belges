@@ -8,6 +8,7 @@ import type { Case, CitizenId } from '../types';
 import { addTag, fullName, hasTag, holder, journal } from '../util';
 import { schedule } from './infrastructure';
 import { killCitizen, propagate } from './social';
+import { remember } from './years';
 
 export const CELL_CAPACITY = 10;
 
@@ -146,6 +147,7 @@ export function applyVerdict(ctx: Ctx, defendantId: CitizenId | undefined, mode:
       imprison(ctx, k, sentence + 3, `Condamnation imposée par l’administration (${sentence + 3} j).`);
       k.forced = !guiltyByJudge;
       if (!guiltyByJudge) {
+        remember(ctx, 'forced_verdict', 22, { title: `Le procès de ${fullName(ctx.w.citizens[k.defendantId])}`, responsibility: 'administration' });
         // Contre l'avis du juge : précédent, colère de l'entourage, juge humilié.
         judgeOffice.legitimacy = clamp(judgeOffice.legitimacy - 10);
         addTag(w, 'judge_bypassed', 25);

@@ -1,4 +1,4 @@
-import { FLOORS, GENERATOR_CAPACITY, POPULATION_START, SCALE, SECTOR_NAMES, TICKS_PER_DAY, TICKS_PER_HOUR, TRAIT_LABELS } from './data/world';
+import { FLOORS, GENERATOR_CAPACITY, SCALE, SECTOR_NAMES, TICKS_PER_DAY, TICKS_PER_HOUR, TRAIT_LABELS, YEAR_DAYS } from './data/world';
 import { Rng, clamp } from './rng';
 import type { Ctx } from './context';
 import { createWorld } from './create';
@@ -52,6 +52,8 @@ import { applyVerdict, caseAction, caseOf, justiceDay, justiceHour } from './sys
 import { rumorAction, rumorsHour, startRumor } from './systems/rumors';
 import { DEMAND_LABELS, STAGE_LABELS, factionAction, factionsDay, setStage } from './systems/factions';
 import { convene, councilChoice, councilReadyIn, councilView, initAffinity } from './systems/council';
+import { DIFFICULTY, diff } from './data/difficulty';
+import { calendar, checkDefeat, checkVictory, demographyDay, remember, yearEnd } from './systems/years';
 import { addTag, dayOf, fullName, hasTag, holder, hourOf, journal, minuteOfDay, pruneIncidents } from './util';
 
 export class Engine {
@@ -90,6 +92,13 @@ export class Engine {
     world.rumors ??= [];
     world.factions ??= [];
     world.officeAffinity ??= {};
+    world.difficulty ??= 'standard';
+    world.chronicle ??= [];
+    world.yearReports ??= [];
+    world.yearReportSeen ??= world.yearReports.length;
+    world.yearStart ??= { population: world.citizens.filter((c) => c.lifeState === 'alive').length, deaths: world.stats.deaths, births: world.stats.births, arrests: world.stats.arrests, tick: world.tick };
+    world.policies.births ??= 'normal';
+    if (world.gameOver && !('kind' in world.gameOver)) world.gameOver = undefined;
     this.w = world;
     this.ctx = this.makeCtx();
     this.hourly();
@@ -141,9 +150,12 @@ export class Engine {
     if (hasTag(w, 'info_filtered')) acc -= 0.18;
     if (hasTag(w, 'it_oversight')) acc += 0.06;
     if (w.assets.servers.state === 'failed') acc -= 0.25;
+    acc += diff(w).info;
     ctx.infoAccuracy = clamp(acc, 0.2, 1);
     if (w.policies.emergencyPowers) addTag(w, 'emergency_active', 1);
-    this.checkGameOver();
+    // Mémoire collective : les émeutes marquent les étages.
+    for (const f of w.floors) if (f.unrest >= 4) remember(ctx, 'riot', 3, { floors: [f.id] });
+    checkDefeat(ctx, () => this.deathChain());
   }
 
   private daily() {
@@ -156,8 +168,18 @@ export class Engine {
     w.lens = Math.max(0.05, w.lens - 0.012 - ctx.rng.next() * 0.01);
     reportsDay(ctx);
     pruneIncidents(w);
-    // Naissances : rares, dépendent du moral général.
-    if (ctx.rng.chance((hasTag(w, 'baby_boom') ? 0.7 : 0.25) * (w.psychology.morale / 60))) this.birth();
+    // Démographie : vieillesse et loterie des naissances.
+    demographyDay(ctx, () => this.birth());
+    // Crises vécues collectivement.
+    if (w.resources.food.real <= 1) remember(ctx, 'famine', 10);
+    if (w.resources.water.real <= 1) remember(ctx, 'thirst', 12);
+    if (ctx.sick > ctx.population * 0.05) remember(ctx, 'epidemic', 8);
+    w.blackoutDays = w.assets.generator.state === 'failed' && w.resources.battery <= 1 ? (w.blackoutDays ?? 0) + 1 : 0;
+    // Tournant de l'année : vieillissement, affectations, bilan, fin de mandat.
+    if (calendar(w).dayOfYear === 1 && dayOf(w) > 1) {
+      yearEnd(ctx);
+      checkVictory(ctx);
+    }
     for (const c of w.citizens) if (c.flags.includes('rewarded') && ctx.rng.chance(0.2)) c.flags = c.flags.filter((f) => f !== 'rewarded');
     for (const [k, v] of Object.entries(w.tags)) if (v <= w.tick) delete w.tags[k];
     w.history.push({
@@ -205,16 +227,9 @@ export class Engine {
     journal(w, `Naissance : ${baby.first} ${baby.last}`, 'info', p.homeFloor);
   }
 
-  private checkGameOver() {
+  /** Chaîne lisible des derniers événements marquants (pour l'écran de fin). */
+  private deathChain() {
     const w = this.w;
-    if (w.gameOver) return;
-    const ctx = this.ctx;
-    const insurgent = w.floors.filter((f) => f.unrest >= 5).length;
-    let reason = '';
-    if (ctx.population < POPULATION_START * 0.5) reason = 'La population du silo s’est effondrée.';
-    else if (insurgent >= 5) reason = 'Une insurrection a pris le contrôle de plusieurs étages.';
-    else if (w.stability < 8 && w.psychology.legitimacy < 15) reason = 'L’administration a perdu toute légitimité : le silo ne vous obéit plus.';
-    if (!reason) return;
     // Chaîne lisible : on regroupe les morts anonymes, on garde les événements marquants.
     const recent = w.memories.filter((m) => m.tick > w.tick - TICKS_PER_DAY * 20);
     const chain: string[] = [];
@@ -226,8 +241,7 @@ export class Engine {
     }
     for (const [day, n] of deathsByDay) chain.push(`Jour ${day} — ${n} décès liés aux conditions de vie`);
     chain.sort((a, b) => Number(a.split(' ')[1]) - Number(b.split(' ')[1]));
-    w.gameOver = { day: dayOf(w), reason, chain };
-    journal(w, `FIN : ${reason}`, 'critical');
+    return chain;
   }
 
   // -------------------------------------------------------------------------
@@ -239,6 +253,16 @@ export class Engine {
     switch (cmd.type) {
       case 'SET_SPEED':
         this.speed = cmd.speed;
+        break;
+      case 'ACK_YEAR_REPORT':
+        w.yearReportSeen = w.yearReports.length;
+        break;
+      case 'CONTINUE_FREE':
+        if (w.gameOver?.kind === 'victory') {
+          w.freeMode = true;
+          w.gameOver = undefined;
+          journal(w, 'L’administration reste en place au-delà de son mandat.', 'important');
+        }
         break;
       case 'MAKE_DECISION':
         decide(ctx, cmd.uid, cmd.choiceId);
@@ -452,9 +476,17 @@ export class Engine {
     }
   }
 
-  private debug(action: 'fail' | 'resources' | 'unrest' | 'accident' | 'faction' | 'rumor' | 'arrest', target?: string) {
+  private debug(action: 'fail' | 'resources' | 'unrest' | 'accident' | 'faction' | 'rumor' | 'arrest' | 'year' | 'victory', target?: string) {
     const w = this.w;
     const ctx = this.ctx;
+    if (action === 'year' || action === 'victory') {
+      // Saute à la veille du prochain tournant d'année (ou de la fin du mandat).
+      const year = action === 'victory' ? DIFFICULTY[w.difficulty].mandateYears : calendar(w).yearIndex + 1;
+      const target = year * YEAR_DAYS * TICKS_PER_DAY - 2;
+      if (target > w.tick) w.tick = target;
+      for (let i = 0; i < 4; i++) this.tick();
+      return;
+    }
     if (action === 'fail') this.forceFailure(target ?? 'generator');
     else if (action === 'resources') {
       for (const k of ['food', 'water', 'parts', 'materials', 'medicine'] as const) {
@@ -679,7 +711,7 @@ export class Engine {
       const pr = ctx.presence[f.id] ?? { present: 0, work: 0, walk: 0, eat: 0, sleep: 0, leisure: 0 };
       const mgr = f.managerId !== undefined ? w.citizens[f.managerId] : undefined;
       // Un responsable peu fiable minimise la colère de son étage.
-      const minimize = mgr && mgr.lifeState === 'alive' ? (1 - f.reportingAccuracy) * (mgr.integrity < 50 ? 0.5 : 0.15) : 0.2;
+      const minimize = mgr && mgr.lifeState === 'alive' ? (1 - f.reportingAccuracy) * (mgr.integrity < 50 ? 0.5 : 0.15) * diff(w).managerBias : 0.2;
       const incidents = w.incidents.filter((x) => x.floor === f.id && x.status !== 'resolved');
       const assetsHere = Object.values(w.assets).filter((a) => a.floor === f.id);
       const repairing = assetsHere.some((a) => a.state === 'failed' || a.state === 'maintenance');
@@ -793,6 +825,13 @@ export class Engine {
       history: w.history,
       tags: Object.keys(w.tags).filter((t) => hasTag(w, t)),
       gameOver: w.gameOver,
+      calendar: { ...calendar(w), yearDays: YEAR_DAYS, mandateYear: calendar(w).yearIndex + 1, mandateYears: DIFFICULTY[w.difficulty].mandateYears, freeMode: !!w.freeMode },
+      difficulty: w.difficulty,
+      chronicle: [...w.chronicle]
+        .sort((a, b) => b.severity - a.severity)
+        .slice(0, 12)
+        .map((e) => ({ id: e.id, title: e.title, severity: Math.round(e.severity), year: e.year, kind: e.kind, reactivations: e.reactivations, commemorated: e.commemorated })),
+      yearReport: w.yearReportSeen < w.yearReports.length ? w.yearReports[w.yearReports.length - 1] : undefined,
       infoAccuracy: acc,
       lens: w.lens,
       cases: w.cases

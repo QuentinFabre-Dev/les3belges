@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { query, useGame } from '../game/store';
+import { sound } from '../audio/sound';
 import { SiloView } from '../render/SiloView';
 import type { CitizenSummary } from '../sim/types';
 import { Icon } from './common';
@@ -50,6 +51,7 @@ export function SiloCanvas() {
       if (viewRef.current) {
         setFps(Math.round(viewRef.current.fps));
         setNpcs(viewRef.current.activeNpcs);
+        sound.setFocus(viewRef.current.visibleFloorIds);
       }
     }, 2000);
     return () => {

@@ -1,6 +1,7 @@
 import { clamp } from '../rng';
 import type { Ctx } from '../context';
 import type { InfrastructureAsset } from '../types';
+import { remember } from './years';
 import { floorById, hasTag, holder, hourOf, journal, message, openIncident, resolveIncidents } from '../util';
 
 export function schedule(ctx: Ctx, eventId: string, data: { floor?: string; assetId?: string; subjectId?: number } = {}) {
@@ -164,7 +165,10 @@ export function fail(ctx: Ctx, a: InfrastructureAsset) {
   a.condition = Math.min(a.condition, 0.25);
   openIncident(w, 'failure', `Panne : ${a.name}`, a.critical ? 'critical' : 'important', causes, a.floor, a.id);
   w.memories.push({ tick: w.tick, type: `failure_${a.id}`, text: `Panne de ${a.name}`, severity: a.critical ? 0.7 : 0.4, perceivedLegitimacy: 50 });
-  if (a.id === 'generator') schedule(ctx, 'generator_failure', { assetId: a.id, floor: a.floor });
+  if (a.id === 'generator') {
+    remember(ctx, 'blackout', 35);
+    schedule(ctx, 'generator_failure', { assetId: a.id, floor: a.floor });
+  }
   else if (a.id === 'pump_main') schedule(ctx, 'pump_failure', { assetId: a.id, floor: a.floor });
   else schedule(ctx, 'asset_failure', { assetId: a.id, floor: a.floor });
 }

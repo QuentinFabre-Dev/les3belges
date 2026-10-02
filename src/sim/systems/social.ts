@@ -7,6 +7,8 @@ import { avg, dayOf, fullName, hasTag, holder, hourOf, journal, message, openInc
 import { schedule } from './infrastructure';
 import { openCase } from './justice';
 import { factionPressure } from './factions';
+import { remember } from './years';
+import { diff } from '../data/difficulty';
 
 const SENSITIVITY: Partial<Record<Trait, number>> = { solidary: 1.35, altruistic: 1.2, impulsive: 1.25, calm: 0.75, individualistic: 0.7, pragmatic: 0.9 };
 const sensitivity = (c: Citizen) => c.traits.reduce((m, t) => m * (SENSITIVITY[t] ?? 1), 1);
@@ -15,6 +17,7 @@ const sensitivity = (c: Citizen) => c.traits.reduce((m, t) => m * (SENSITIVITY[t
 // Besoins individuels (horaire)
 
 export function populationHour(ctx: Ctx) {
+  const tolerance = diff(ctx.w).tolerance;
   const { w } = ctx;
   const r = w.resources;
   const hungry = r.food.real <= 1;
@@ -83,7 +86,7 @@ export function populationHour(ctx: Ctx) {
     baseline += (1 - w.lens) * 8;
     if (c.flags.includes('ex_prisoner')) baseline += 10;
     const decay = c.grievance > baseline ? 0.03 : 0;
-    c.grievance = clamp(c.grievance + grievanceGain - decay + (c.grievance < baseline ? 0.02 : 0));
+    c.grievance = clamp(c.grievance + grievanceGain * tolerance - decay + (c.grievance < baseline ? 0.02 : 0));
 
     // Confiance : dérive vers la légitimité, plombée par la colère
     const trustTarget = legit * 0.85 - c.anger * 0.25 + (c.traits.includes('loyal') ? 10 : 0) - (c.traits.includes('skeptical') ? 8 : 0);
@@ -113,14 +116,13 @@ export function populationHour(ctx: Ctx) {
 }
 
 export function healthDeaths(ctx: Ctx) {
-  const { w, rng } = ctx;
+  const { w } = ctx;
   for (const c of w.citizens) {
     if (c.lifeState !== 'alive') continue;
     if (c.health <= 0) {
       const r = ctx.w.resources;
       killCitizen(ctx, c.id, r.water.real <= 1 ? 'Conditions de vie (déshydratation)' : r.food.real <= 1 ? 'Conditions de vie (famine)' : 'Conditions de vie', 'negligence');
     }
-    else if (c.age > 72 && rng.chance(0.0004)) killCitizen(ctx, c.id, 'Mort naturelle', 'accident');
   }
 }
 
@@ -268,7 +270,11 @@ export function socialHour(ctx: Ctx) {
   // Légitimité : dérive lente vers trust + résultats (pas de pénurie, peu de troubles).
   const shortages = (w.resources.food.real < 500 ? 15 : 0) + (w.resources.water.real < 150 ? 15 : 0);
   const unrestTotal = w.floors.reduce((s, f) => s + f.unrest, 0);
-  const legitTarget = w.psychology.trust * 0.7 + 25 - shortages - unrestTotal * 1.5 - (w.policies.emergencyPowers ? 8 : 0) - (hasTag(w, 'judge_bypassed') ? 8 : 0);
+  // Les résultats comptent : un silo nourri, abreuvé et éclairé rend sa légitimité à l'administration.
+  const fedDays = w.resources.food.real / Math.max(1, ctx.population);
+  const wetDays = w.resources.water.real / Math.max(1, ctx.population + 470);
+  const performance = (fedDays >= 10 ? 4 : fedDays >= 5 ? 2 : 0) + (wetDays >= 3 ? 3 : wetDays >= 1.5 ? 1 : 0) + (w.assets.generator.state !== 'failed' && w.assets.pump_main.state !== 'failed' ? 3 : 0);
+  const legitTarget = w.psychology.trust * 0.6 + 30 + performance - shortages - unrestTotal * 1.2 - (w.policies.emergencyPowers ? 8 : 0) - (hasTag(w, 'judge_bypassed') ? 8 : 0);
   w.psychology.legitimacy = clamp(w.psychology.legitimacy + (legitTarget - w.psychology.legitimacy) * 0.01);
   const sheriff = holder(w, 'sheriff');
   const authTarget = 40 + (sheriff ? sheriff.skill * 0.25 : 0) + w.psychology.legitimacy * 0.2 - unrestTotal * 2 + (w.policies.emergencyPowers ? 12 : 0);
@@ -322,6 +328,7 @@ export function propagate(ctx: Ctx, sourceId: CitizenId, severity: number, kind:
   const visited = new Map<number, number>();
   const queue: [number, number, number][] = [[sourceId, 0, 1]];
   const unjust = (100 - legitimacy) / 100;
+  const tolerance = diff(w).tolerance;
   while (queue.length) {
     const [id, depth, strength] = queue.shift()!;
     if (depth >= 3) continue;
@@ -336,7 +343,7 @@ export function propagate(ctx: Ctx, sourceId: CitizenId, severity: number, kind:
   for (const [id, s] of visited) {
     const c = w.citizens[id];
     if (c.lifeState !== 'alive') continue;
-    const k = severity * s * sensitivity(c) * (w.relations[sourceId].find((e) => e.to === id)?.type === 'rival' ? -0.3 : 1);
+    const k = severity * s * sensitivity(c) * tolerance * (w.relations[sourceId].find((e) => e.to === id)?.type === 'rival' ? -0.3 : 1);
     applyReaction(c, kind, k, unjust);
     if (c.key && k > 6) {
       c.memories.push({ day: dayOf(w), text: memoryText(kind, src), trustDelta: -Math.round(k * unjust), angerDelta: Math.round(k * 0.6) });
@@ -429,6 +436,8 @@ export function killCitizen(ctx: Ctx, id: CitizenId, cause: string, perceived: '
   propagate(ctx, id, severity, perceived === 'legal' || perceived === 'controversial' ? 'execution' : 'death', legitimacy, broad);
   w.memories.push({ tick: w.tick, type: `death_${perceived}`, text: `${fullName(c)} : ${cause}`, severity: severity / 100, perceivedLegitimacy: legitimacy });
   journal(w, `Décès de ${fullName(c)} (${c.age} ans) — ${cause}`, c.key ? 'important' : 'attention', c.workFloor);
+  if (cause.includes('minier') || cause.includes('galerie')) remember(ctx, 'mine_accident', 22, { floors: [c.workFloor], sectors: ['mines'], responsibility: perceived === 'negligence' ? 'administration' : undefined });
+  if (c.officeId) remember(ctx, 'death_key', cause === 'Mort naturelle' ? 15 : 32, { title: `La mort de ${fullName(c)}` });
   if (c.officeId) vacate(ctx, c.officeId, `Décès de ${fullName(c)}`);
   if (c.flags.includes('specialist')) {
     const lost = Object.values(w.assets).filter((a) => a.specialistIds.includes(id));

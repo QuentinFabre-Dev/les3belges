@@ -45,10 +45,12 @@ interface Result {
   minStability: number;
   deaths: number;
   decisions: number;
+  end: string;
+  pop: number;
 }
 
 function play(seed: number, auto: boolean): Result {
-  const e = new Engine(createWorld(seed));
+  const e = new Engine(createWorld(seed, (process.env.DIFF as 'accessible' | 'standard' | 'hard' | undefined) ?? 'standard'));
   let minStability = 100;
   let decisions = 0;
   for (let t = 0; t < DAYS * 144; t++) {
@@ -66,8 +68,9 @@ function play(seed: number, auto: boolean): Result {
     }
     if (e.w.gameOver) break;
   }
-  if (process.env.TRACE && e.w.gameOver) console.log('FIN', seed, e.w.gameOver.reason, '\n  ' + e.w.gameOver.chain.join('\n  '));
-  return { seed, survived: e.w.gameOver?.day ?? DAYS, minStability: Math.round(minStability), deaths: e.w.stats.deaths, decisions };
+  if (process.env.TRACE && e.w.gameOver) console.log('FIN', seed, e.w.gameOver.title, e.w.gameOver.reason, '\n  ' + e.w.gameOver.chain.join('\n  '));
+  const go = e.w.gameOver;
+  return { seed, survived: go && go.kind === 'defeat' ? go.day : DAYS, minStability: Math.round(minStability), deaths: e.w.stats.deaths, decisions, end: go?.id ?? '-', pop: e.ctx.population };
 }
 
 describe.runIf(RUN)('équilibrage', () => {
@@ -75,7 +78,7 @@ describe.runIf(RUN)('équilibrage', () => {
     const passive: Result[] = [];
     const auto: Result[] = [];
     for (let i = 0; i < SEEDS; i++) {
-      const seed = 1000 + i * 37;
+      const seed = Number(process.env.SEED0 ?? 1000) + i * 37;
       passive.push(play(seed, false));
       auto.push(play(seed, true));
     }
@@ -91,8 +94,8 @@ describe.runIf(RUN)('équilibrage', () => {
     };
     console.log('PASSIF', JSON.stringify(summary(passive)));
     console.log('AUTO  ', JSON.stringify(summary(auto)));
-    console.log('détail auto', auto.map((r) => `${r.seed}:${r.survived}j/stab${r.minStability}/†${r.deaths}`).join(' '));
-    console.log('détail passif', passive.map((r) => `${r.seed}:${r.survived}j/†${r.deaths}`).join(' '));
+    console.log('détail auto', auto.map((r) => `${r.seed}:${r.survived}j/stab${r.minStability}/†${r.deaths}/pop${r.pop}/${r.end}`).join(' '));
+    console.log('détail passif', passive.map((r) => `${r.seed}:${r.survived}j/†${r.deaths}/${r.end}`).join(' '));
     expect(summary(auto).survie_mediane).toBeGreaterThanOrEqual(summary(passive).survie_mediane);
   }, 600_000);
 });

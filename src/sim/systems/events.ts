@@ -1,5 +1,6 @@
 import { EVENTS } from '../data/events';
-import { SCALE, SECTOR_FLOOR, SECTOR_FLOORS, SECTOR_NAMES, TICKS_PER_DAY, TICKS_PER_HOUR } from '../data/world';
+import { SCALE, SECTOR_FLOOR, SECTOR_FLOORS, SECTOR_NAMES, TICKS_PER_DAY, TICKS_PER_HOUR, YEAR_DAYS } from '../data/world';
+import { remember, soothe } from './years';
 import { clamp } from '../rng';
 import type { Ctx } from '../context';
 import type {
@@ -507,6 +508,12 @@ export function applyEffects(ctx: Ctx, effects: Effect[], p: DecisionContext) {
       case 'clean_lens':
         cleanLens(ctx);
         break;
+      case 'chronicle':
+        soothe(ctx, Number(p.vars?.memoryId), e.factor, e.mark);
+        break;
+      case 'remember':
+        remember(ctx, e.kind, e.severity, { title: e.title });
+        break;
       case 'verdict':
         applyVerdict(ctx, p.subjectId, e.mode);
         break;
@@ -574,7 +581,7 @@ export function rebalanceStaff(ctx: Ctx) {
       excess--;
     }
   }
-  const pool = w.citizens.filter((c) => c.lifeState === 'alive' && c.sector === 'residential' && c.age >= 18 && c.age <= 64 && !c.officeId);
+  const pool = w.citizens.filter((c) => c.lifeState === 'alive' && c.sector === 'residential' && c.age >= 16 && c.age <= 64 && !c.officeId && !c.flags.includes('retired'));
   pool.sort((a, b) => b.skill - a.skill);
   for (const s of Object.values(w.sectors)) {
     if (s.id === 'residential') continue;
@@ -598,6 +605,7 @@ export function setLockdown(ctx: Ctx, floorId: string, level: 'open' | 'controll
   f.lockdownSince = level === 'open' ? undefined : prev === 'open' ? w.tick : f.lockdownSince;
   const label = { open: 'levé', controlled: 'accès contrôlés', full: 'blocus complet' }[level];
   journal(w, `${f.label} ${f.name} : ${label}`, level === 'full' ? 'important' : 'info', f.id);
+  if (level === 'full') remember(ctx, 'lockdown', 15, { floors: [f.id], title: `Le Blocus du ${f.label}` });
   if (level !== 'open') {
     const justified = f.unrest >= 3 || w.incidents.some((i) => i.status !== 'resolved' && i.floor === f.id && (i.type === 'contamination' || i.type === 'unrest'));
     for (const c of w.citizens) {
@@ -747,7 +755,7 @@ export function electionHour(ctx: Ctx) {
   winner.officeId = e.officeId;
   winner.key = true;
   office.legitimacy = clamp(40 + (winVotes / total) * 70);
-  office.termEndsDay = dayOf(w) + 45;
+  office.termEndsDay = dayOf(w) + YEAR_DAYS * 2;
   w.psychology.legitimacy = clamp(w.psychology.legitimacy + 6);
   for (const c of w.citizens) if (c.lifeState === 'alive') c.trust = clamp(c.trust + 3);
   // Le soutien de l'administration peut fuiter.

@@ -215,6 +215,7 @@ export interface Policies {
   powerPriority: SectorId[];
   maintenanceFocus: AssetId | 'auto';
   emergencyPowers: boolean;
+  births: 'restricted' | 'normal' | 'expanded'; // loterie des naissances
 }
 
 export interface Office {
@@ -361,6 +362,7 @@ export interface Faction {
   symbol: string;
   sector: SectorId;
   floorIds: FloorId[];
+  truceUntil?: number; // trêve après une concession : pas d'escalade avant ce tick
   leaderId: CitizenId;
   members: CitizenId[];
   influence: number; // 0-100
@@ -424,8 +426,61 @@ export interface WorldState {
   lens: number; // netteté des capteurs extérieurs (écran des réfectoires), 0-1
   history: HistoryPoint[];
   nextUid: number;
-  gameOver?: { day: number; reason: string; chain: string[] };
+  gameOver?: GameOver;
   stats: { deaths: number; births: number; arrests: number };
+  difficulty: Difficulty;
+  chronicle: ChronicleEntry[];
+  yearReports: YearReport[];
+  yearReportSeen: number;
+  yearStart: { population: number; deaths: number; births: number; arrests: number; tick: number };
+  freeMode?: boolean;
+  blackoutDays?: number;
+}
+
+export type Difficulty = 'accessible' | 'standard' | 'hard';
+
+export type ChronicleKind = 'mine_accident' | 'blackout' | 'famine' | 'thirst' | 'epidemic' | 'riot' | 'insurrection' | 'lockdown' | 'forced_verdict' | 'death_key' | 'truth';
+
+/** Mémoire collective (§116) : une crise dont le silo se souvient, qui peut se réactiver. */
+export interface ChronicleEntry {
+  id: number;
+  kind: ChronicleKind;
+  title: string;
+  tick: number;
+  year: number;
+  severity: number; // 0-100, s'efface avec les années
+  peak: number;
+  floors: FloorId[];
+  sectors: SectorId[];
+  responsibility?: string;
+  reactivations: number;
+  commemorated?: 'official' | 'quiet' | 'forbidden';
+}
+
+export interface YearReport {
+  year: number;
+  population: number;
+  popDelta: number;
+  births: number;
+  deaths: number;
+  arrests: number;
+  stability: number;
+  legitimacy: number;
+  trust: number;
+  memories: { title: string; severity: number }[];
+  notes: string[];
+}
+
+export interface GameOver {
+  day: number;
+  year: number;
+  kind: 'defeat' | 'victory';
+  id: string;
+  title: string;
+  reason: string;
+  chain: string[];
+  epilogue: string[];
+  stats: { label: string; value: string }[];
 }
 
 export interface HistoryPoint {
@@ -476,6 +531,8 @@ export type Effect =
   | { type: 'chance'; p: number; then: Effect[]; else?: Effect[] }
   | { type: 'start_election'; officeId: OfficeId }
   | { type: 'clean_lens' }
+  | { type: 'chronicle'; factor: number; mark?: 'official' | 'quiet' | 'forbidden' }
+  | { type: 'remember'; kind: ChronicleKind; severity: number; title?: string }
   | { type: 'verdict'; mode: 'judge' | 'convict' | 'pardon' | 'cleaning' | 'reduce' | 'annul' | 'confirm' }
   | { type: 'rumor'; templateId: string }
   | { type: 'faction'; action: 'negotiate' | 'coopt' | 'infiltrate' | 'arrest_leader' | 'dissolve' };
@@ -526,14 +583,16 @@ export type GameCommand =
   | { type: 'CITIZEN_ACTION'; citizenId: CitizenId; action: 'arrest' | 'release' | 'reward' | 'protect' | 'investigate' | 'dismiss' }
   | { type: 'SEND_REPAIR'; assetId: AssetId }
   | { type: 'MARK_READ'; messageId: number }
-  | { type: 'NEW_GAME'; seed?: number }
+  | { type: 'NEW_GAME'; seed?: number; difficulty?: Difficulty }
+  | { type: 'ACK_YEAR_REPORT' }
+  | { type: 'CONTINUE_FREE' }
   | { type: 'CASE_ACTION'; caseId: number; action: 'release' | 'expedite' }
   | { type: 'RUMOR_ACTION'; rumorId: number; action: 'deny' | 'confirm' | 'investigate' }
   | { type: 'FACTION_ACTION'; factionId: number; action: 'negotiate' | 'coopt' | 'infiltrate' | 'arrest_leader' | 'dissolve'; demand?: DemandKind }
   | { type: 'CONVENE_COUNCIL' }
   | { type: 'COUNCIL_CHOICE'; proposalId: string }
   | { type: 'SPAWN_EVENT'; eventId: string; floor?: FloorId; assetId?: AssetId }
-  | { type: 'DEBUG'; action: 'fail' | 'resources' | 'unrest' | 'accident' | 'faction' | 'rumor' | 'arrest'; target?: string }
+  | { type: 'DEBUG'; action: 'fail' | 'resources' | 'unrest' | 'accident' | 'faction' | 'rumor' | 'arrest' | 'year' | 'victory'; target?: string }
   | { type: 'SAVE' }
   | { type: 'LOAD' };
 
@@ -726,7 +785,11 @@ export interface Snapshot {
   election?: { officeId: OfficeId; title: string; candidates: { id: CitizenId; name: string; support: number; portrait?: string }[]; endsInHours: number; supportedId?: CitizenId; winnerId?: CitizenId };
   history: HistoryPoint[];
   tags: string[];
-  gameOver?: { day: number; reason: string; chain: string[] };
+  gameOver?: GameOver;
+  calendar: { year: number; dayOfYear: number; yearDays: number; mandateYear: number; mandateYears: number; freeMode: boolean };
+  difficulty: Difficulty;
+  chronicle: { id: number; title: string; severity: number; year: number; kind: ChronicleKind; reactivations: number; commemorated?: string }[];
+  yearReport?: YearReport;
   infoAccuracy: number;
   lens: number;
   cases: CaseView[];

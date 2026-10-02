@@ -1,4 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { POPULATION_START } from '../sim/data/world';
+import type { Difficulty } from '../sim/types';
+import { DifficultyPicker } from './Chronicle';
 
 // Scène d'introduction : le Pacte s'ouvre, on lit ses articles, on le signe.
 const base = import.meta.env.BASE_URL;
@@ -20,11 +23,13 @@ function Article({ n, children }: { n: string; children: ReactNode }) {
   );
 }
 
-export function Intro({ onDone }: { onDone: (name: string) => void }) {
+export function Intro({ onDone }: { onDone: (name: string, difficulty?: Difficulty) => void }) {
   const [stage, setStage] = useState<Stage>('prologue');
   const [line, setLine] = useState(0);
   const [spread, setSpread] = useState(0);
   const [turning, setTurning] = useState(false);
+  const [difficulty, setDifficulty] = useState<Difficulty>('standard');
+  const [signed, setSigned] = useState(false);
   const [name, setName] = useState(() => {
     try {
       return localStorage.getItem('silo-01:admin-name') ?? '';
@@ -81,9 +86,12 @@ export function Intro({ onDone }: { onDone: (name: string) => void }) {
           className="pact-sign"
           onSubmit={(e) => {
             e.preventDefault();
+            setSigned(true);
             setStage('sealed');
           }}
         >
+          <p className="pact-small">Clause du mandat :</p>
+          <DifficultyPicker value={difficulty} onChange={setDifficulty} pact />
           <label className="pact-text" htmlFor="pact-name">
             Signé,
           </label>
@@ -130,7 +138,8 @@ export function Intro({ onDone }: { onDone: (name: string) => void }) {
     } catch {
       /* ignore */
     }
-    onDone(n);
+    // Passer l'introduction sans signer garde la partie déjà en cours.
+    onDone(n, signed ? difficulty : undefined);
   };
 
   const turn = () => {
@@ -201,7 +210,7 @@ export function Intro({ onDone }: { onDone: (name: string) => void }) {
       {stage === 'descent' && (
         <div className="prologue descent">
           <p className="prologue-line">Jour 1, 06:00.</p>
-          <p className="prologue-line delay">Le Silo compte 1 400 âmes. Elles ne savent pas encore votre nom, {name.trim() || 'Administrateur'}.</p>
+          <p className="prologue-line delay">Le Silo compte {POPULATION_START.toLocaleString('fr-FR')} âmes. Elles ne savent pas encore votre nom, {name.trim() || 'Administrateur'}.</p>
         </div>
       )}
       <button className="intro-skip" onClick={finish}>

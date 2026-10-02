@@ -7,6 +7,7 @@ import { clamp } from '../rng';
 import type { Ctx } from '../context';
 import type { Citizen, FloorId, Rumor, RumorTruth } from '../types';
 import { fullName, hasTag, holder, hourOf, journal } from '../util';
+import { diff } from '../data/difficulty';
 
 interface Template {
   id: string;
@@ -181,7 +182,7 @@ export function rumorsHour(ctx: Ctx) {
       let x = r.reach[f.id] ?? 0;
       if (r.status === 'spreading') {
         const cohesion = w.sectors[f.sector]?.cohesion ?? 0.5;
-        const rate = 0.05 * (0.5 + f.fear / 100 + (1 - f.trust / 100) + cohesion * 0.3) * (f.lockdown === 'full' ? 0.4 : 1);
+        const rate = 0.05 * diff(w).rumorSpeed * (0.5 + f.fear / 100 + (1 - f.trust / 100) + cohesion * 0.3) * (f.lockdown === 'full' ? 0.4 : 1);
         x += rate * x * (1 - x);
         const up = i > 0 ? r.reach[w.floors[i - 1].id] : 0;
         const down = i < n - 1 ? r.reach[w.floors[i + 1].id] : 0;
