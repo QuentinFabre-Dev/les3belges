@@ -50,6 +50,8 @@ export default function App() {
     }
   });
   const debug = new URLSearchParams(location.search).has('debug');
+  // Mode debug : accès au store depuis la console (et pour les captures automatisées).
+  if (debug) (window as unknown as { silo: typeof useGame }).silo = useGame;
 
   // Joueur déjà initié : le temps démarre directement.
   useEffect(() => {

@@ -64,6 +64,7 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 - ✅ Vue Salle : clic sur une salle quand on est zoomé (ou boutons « Salle ouest/est » de la fiche étage) → caméra centrée, fiche avec description, équipement, présents à l'heure et leur activité (§5)
 - ✅ Vue Personne : « Suivre dans le silo » depuis une fiche habitant → la caméra suit un PNJ qui le représente (escaliers, trajets), carte avec activité en cours et bandeau des 24 h (école, travail, repas au réfectoire, bazar, repos) (§5)
 - ✅ 40 événements de plus (75 au total) : école, bazar/marché noir, récoltes, blanchisserie, surpopulation, ascenseur, porteurs, grippe, gaz de mine, filon, eau, génératrice, pompe, départ d'expert, intrusion DSI, archives, maire malade, juge qui part, adjoint corrompu, mariage, enfant perdu, accaparement, vol d'électricité, chanson interdite, bagarre au réfectoire, jour de la Fondation…
+- ✅ Ambiance vivante (`src/render/ambient.ts`) : lampes, voyants et plantes détectés dans les pixels des images ; halos qui respirent et vacillent, secours rouges en panne ; voyants qui clignotent (s'éteignent sans courant) ; cultures en cycle de 6 jours (pousse, tomates qui mûrissent, récolte en vague, jaunissent en cas de maladie ou de manque d'eau) et qui ondulent ; vapeur (blanchisserie, cuisines aux heures de repas), fumée de la génératrice en surcharge/panne, poussière des mines (verdâtre en cas de gaz), gouttes sous les pompes et du plafond des étages usés, cadrans de la génératrice qui suivent la charge ; respecte les réglages effets/éclairage et la dégradation adaptative
 - ✅ Test catalogue : chaque événement s'ouvre et chacun de ses choix se résout sans erreur ni placeholder (`tests/events.test.ts`)
 
 ### Étape 4 — Jeu complet
@@ -84,7 +85,7 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 | 4 | Structure du silo par étages | ✅ | 30 étages dont 3 réfectoires (-01, -12, -23) |
 | 5 | Vues Silo / Étage / Salle / Personne | ✅ | Silo, fiche étage, vue Salle, vue Personne (suivi + journée) |
 | 6 | Population simulée vs PNJ visibles | ✅ | 75–400 PNJ selon réglage |
-| 7 | Animations et petits événements visuels | 🟡 | marche, escaliers, travail, porter, réparer, assis, discuter, bulles, étincelles ; manque manger/dormir visibles, files |
+| 7 | Animations et petits événements visuels | 🟡 | PNJ (marche, escaliers, travail, porter, réparer, assis, discuter, bulles) + ambiance des salles : halos de lampes, voyants, plantes qui poussent et ondulent, vapeur, fumée, poussière, gouttes, cadrans ; manque manger/dormir visibles, files |
 | 8 | Routines quotidiennes | ✅ | Présence par heure et par étage ; école, repas au réfectoire, bazar le soir |
 | 9 | Temps et vitesses | ✅ | |
 | 10–11 | Ressources, production/consommation, dépendances | ✅ | eau, nourriture, énergie, fer, pièces, médicaments |
@@ -131,6 +132,7 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 
 ## Journal des livraisons
 
+- **Ambiance** — animation du décor des salles sans nouvelle image (analyse des pixels + émetteurs placés à la main).
 - **Étape 3** — 30 étages / 3 000 habitants, 3 réfectoires, vue Salle, vue Personne, 40 nouveaux événements (5 images générées : école, bazar, quartiers, blanchisserie, serre ≈ 0,15 $).
 - **Étape 0** — socle jouable : simulation, rendu, UI, assets, tests headless.
 - **Étape 2** — justice, rumeurs, factions, conseil (2 images générées : tribunal, salle du conseil ; une génération bloquée relancée).

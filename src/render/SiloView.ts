@@ -1,5 +1,6 @@
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture, TextureSource, TilingSprite } from 'pixi.js';
 import type { FloorView, LockdownLevel, SectorId, Snapshot } from '../sim/types';
+import { Ambient } from './ambient';
 import { NavigationGraph } from './navigation';
 import { CHAR_H, CHAR_W, FRAMES, FRAME_COUNT, atlasRow, buildCitizenAtlas, type Anim } from './sprites';
 import {
@@ -94,6 +95,7 @@ export class SiloView {
   private bubbleTex!: Texture;
   private alertTex!: Texture;
   private sparks: { sp: Sprite; vx: number; vy: number; life: number }[] = [];
+  private ambient = new Ambient();
   private screens: { floor: number; feed: TilingSprite; grime: Sprite; noise: Sprite; base: number }[] = [];
   private elevator = new Graphics();
   private elevatorY = 0;
@@ -157,6 +159,7 @@ export class SiloView {
     const base = import.meta.env.BASE_URL;
     const urls = [...ROOM_TEXTURES.map((t) => `${base}assets/rooms/${t}.png`), `${base}assets/surface.png`];
     await Assets.load(urls);
+    for (const t of ROOM_TEXTURES) this.ambient.analyze(t, Texture.from(`${base}assets/rooms/${t}.png`));
 
     // Atlas des habitants
     const atlas = Texture.from(buildCitizenAtlas());
@@ -169,7 +172,7 @@ export class SiloView {
     this.bubbleTex = Texture.from(bubbleCanvas());
     this.alertTex = Texture.from(alertBubbleCanvas());
 
-    this.world.addChild(this.bg, this.floorLayer, this.npcLayer, this.fxLayer);
+    this.world.addChild(this.bg, this.floorLayer, this.npcLayer, this.ambient.layer, this.fxLayer);
     this.app.stage.addChild(this.world, this.ui);
     this.app.stage.eventMode = 'static';
     this.app.stage.hitArea = this.app.screen;
@@ -208,8 +211,9 @@ export class SiloView {
     for (const f of floors) {
       const root = new Container();
       root.y = f.index * FLOOR_H;
-      const left = new Sprite(Texture.from(`${import.meta.env.BASE_URL}assets/rooms/${f.left}.png`));
-      const right = new Sprite(Texture.from(`${import.meta.env.BASE_URL}assets/rooms/${f.right}.png`));
+      const roomTex = (n: string) => this.ambient.base(n) ?? Texture.from(`${import.meta.env.BASE_URL}assets/rooms/${n}.png`);
+      const left = new Sprite(roomTex(f.left));
+      const right = new Sprite(roomTex(f.right));
       right.x = SHAFT_X + SHAFT_W;
       if (f.left === f.right) {
         right.scale.x = -1;
@@ -240,6 +244,10 @@ export class SiloView {
       const highlight = new Graphics().rect(-2, -2, SILO_W + 4, ROOM_H + 4).stroke({ color: 0xe8a33c, width: 2, alpha: 0.9 });
       highlight.visible = false;
       root.addChild(left, right, shaft, slabL, slabR, wl, wr);
+      // Ambiance animée (plantes, voyants, cadrans sous l'ombre ; halos des lampes au-dessus).
+      const ambL = this.ambient.buildWing(f.index, f.left, 0, false);
+      const ambR = this.ambient.buildWing(f.index, f.right, SHAFT_X + SHAFT_W, f.left === f.right);
+      root.addChild(ambL.under, ambR.under);
       // Écrans des réfectoires : la vue de la surface, en direct, à travers des capteurs plus ou moins sales.
       const wings: [string, number, boolean][] = [
         [f.left, 0, false],
@@ -262,7 +270,7 @@ export class SiloView {
         tags.push(t);
         root.addChild(t);
       }
-      root.addChild(dark, red, lock, highlight);
+      root.addChild(dark, ambL.over, ambR.over, red, lock, highlight);
       this.floorLayer.addChild(root);
 
       const label = new Text({ text: f.label, style: { fontFamily: 'Rajdhani, sans-serif', fontSize: 22, fontWeight: '700', fill: 0xd8dde3 } });
@@ -633,6 +641,7 @@ export class SiloView {
         flick = g.flicker > 0 && g.flicker < 0.12 ? 0.25 : 0;
       }
       g.dark.alpha = Math.min(0.85, darkness + flick);
+      this.ambient.updateFloor(g.index, f, s, dt, time, flick, { secondary: this.effSecondary, lighting: this.settings.lighting, zoom: this.zoom });
       let redA = 0;
       if (blackout && f.power < 0.5) redA = 0.1 + 0.06 * Math.sin(time * 3);
       if (f.unrest >= 4) redA = Math.max(redA, 0.12 + 0.05 * Math.sin(time * 5));
@@ -666,6 +675,7 @@ export class SiloView {
     const mul = s.speed === 0 ? 0.35 : 1 + Math.log2(Math.max(1, s.speed)) * 0.25;
     for (const n of this.npcs) if (n.active) this.updateNpc(n, dt * mul, time);
     if (secondary) this.updateSparks(dt);
+    this.ambient.updateParticles(dt, time);
     this.updateFollow(dt * mul);
     this.adaptive(dt);
   }
