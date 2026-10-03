@@ -123,6 +123,21 @@ export const RUMOR_TEMPLATES: Template[] = [
     anger: 4,
     trust: -2,
   },
+  {
+    // Ouverture : le candidat battu accuse la DSI d'avoir arrangé l'élection du maire.
+    id: 'election_arrangee',
+    text: () => 'L’élection du maire aurait été arrangée depuis les serveurs du -03.',
+    truth: (ctx) => {
+      if (!hasTag(ctx.w, 'opening_done')) return null;
+      const seat = ctx.w.opening?.seats.find((s) => s.officeId === 'mayor');
+      return seat?.backedId === undefined ? 'false' : seat.backedId === seat.chosenId ? 'partial' : 'false';
+    },
+    chancePerDay: 0, // ne naît que par un événement
+    origin: (ctx) => ctx.w.citizens.find((c) => c.flags.includes('opening_rival'))?.homeFloor ?? 'res_low',
+    fear: 0,
+    anger: 6,
+    trust: -4,
+  },
 ];
 
 const TEMPLATES = new Map(RUMOR_TEMPLATES.map((t) => [t.id, t]));

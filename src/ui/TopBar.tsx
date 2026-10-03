@@ -33,7 +33,7 @@ export function TopBar() {
         </svg>
         <div>
           <div className="brand-title">SILO-01</div>
-          <div className="brand-sub">GESTION EXTERNE</div>
+          <div className="brand-sub">DIRECTION DSI</div>
         </div>
       </div>
       <div className="resources" data-tut="resources">

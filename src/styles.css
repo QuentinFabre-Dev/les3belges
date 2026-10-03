@@ -1536,3 +1536,223 @@ p {
 .ok {
   color: var(--ok);
 }
+
+/* ---------------------------------------------------------------- Investiture (ouverture narrative) */
+.investiture {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: #06080b;
+  overflow-y: auto;
+  color: var(--text);
+}
+.inv-story {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  background-size: cover;
+  background-position: center;
+  image-rendering: pixelated;
+  position: relative;
+}
+.inv-story::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.93));
+}
+.inv-story-text {
+  position: relative;
+  max-width: 720px;
+  padding: 40px 24px;
+}
+.inv-story-text h1 {
+  font-family: 'IM Fell English SC', Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(30px, 4vw, 44px);
+  color: #f2e4c4;
+  margin: 4px 0 18px;
+}
+.inv-story-text .prologue-line {
+  font-size: clamp(15px, 1.6vw, 19px);
+  text-align: left;
+}
+.inv-kicker {
+  color: #a89a80;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.inv-you {
+  color: #f2e4c4 !important;
+}
+.inv-actions {
+  margin-top: 26px;
+  align-items: center;
+  flex-wrap: wrap;
+  animation: fadeUp 1.2s 3.6s ease both;
+}
+.inv-seat {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 24px 40px;
+  animation: fadeIn 0.5s ease both;
+}
+.inv-head h2 {
+  font-size: 28px;
+  margin: 4px 0 6px;
+}
+.inv-head p {
+  max-width: 820px;
+  margin: 4px 0;
+}
+.inv-note {
+  border-left: 3px solid var(--accent);
+  padding: 6px 10px;
+  background: rgba(232, 163, 60, 0.07);
+}
+.inv-cands {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+.inv-cand {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.inv-cand.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 6px 24px rgba(232, 163, 60, 0.12);
+}
+.inv-cand > .btn {
+  justify-content: center;
+  margin-top: auto;
+}
+.inv-arch {
+  font-family: var(--head);
+  color: var(--accent);
+  font-size: 13px;
+  letter-spacing: 0.4px;
+}
+.inv-name {
+  font-size: 16px;
+}
+.inv-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+}
+.inv-stat,
+.inv-poll {
+  display: grid;
+  grid-template-columns: 82px 1fr 24px;
+  gap: 6px;
+  align-items: center;
+}
+.inv-poll {
+  grid-template-columns: 110px 1fr 36px;
+}
+.inv-bio {
+  margin: 0;
+  line-height: 1.45;
+}
+.inv-file {
+  margin: 0;
+  font-style: italic;
+  font-size: 12px;
+  color: #c9bfa8;
+  border-top: 1px dashed var(--line-2);
+  padding-top: 6px;
+}
+.inv-pledge {
+  margin: 0;
+  color: var(--accent);
+}
+.inv-foot {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.inv-results .card {
+  margin: 12px 0;
+}
+.inv-vote {
+  align-items: center;
+  margin: 6px 0;
+}
+.inv-vote .bar > div {
+  transition: width 1.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.inv-vote.won .grow {
+  font-weight: 600;
+}
+.inv-appointees {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.inv-appointees .card {
+  margin: 0;
+  align-items: center;
+}
+.player-office {
+  margin-bottom: 10px;
+  border-color: var(--accent);
+}
+
+/* ---------------------------------------------------------------- Objectifs guidés */
+.objectives > header {
+  gap: 6px;
+}
+.objectives .obj-toggle {
+  text-align: left;
+  min-width: 0;
+}
+.objectives .obj-toggle h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.objectives.finished {
+  border-color: var(--ok);
+}
+.obj-intro {
+  margin: 2px 0 6px;
+  font-style: italic;
+}
+.list-row.obj {
+  padding: 5px 6px;
+  align-items: flex-start;
+}
+.list-row.obj.done {
+  opacity: 0.55;
+}
+.list-row.obj.done .small {
+  text-decoration: line-through;
+}
+.list-row.obj.current {
+  border-color: var(--line-2);
+  background: rgba(232, 163, 60, 0.06);
+}
+.obj-check {
+  width: 16px;
+  display: grid;
+  place-items: center;
+  padding-top: 2px;
+}
+.obj-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+}
+.obj-hint {
+  display: block;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+.obj-reward {
+  white-space: nowrap;
+  font-size: 10px;
+}

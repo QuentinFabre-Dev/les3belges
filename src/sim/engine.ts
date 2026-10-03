@@ -1,4 +1,4 @@
-import { FLOORS, GENERATOR_CAPACITY, SCALE, SECTOR_NAMES, TICKS_PER_DAY, TICKS_PER_HOUR, TRAIT_LABELS, YEAR_DAYS } from './data/world';
+import { FLOORS, GENERATOR_CAPACITY, OFFICES, SCALE, SECTOR_NAMES, TICKS_PER_DAY, TICKS_PER_HOUR, TRAIT_LABELS, YEAR_DAYS } from './data/world';
 import { Rng, clamp } from './rng';
 import type { Ctx } from './context';
 import { createWorld } from './create';
@@ -56,6 +56,8 @@ import { DIFFICULTY, diff } from './data/difficulty';
 import { forecast } from './systems/forecast';
 import { initInstitutions, institutionsDay, institutionsView } from './systems/institutions';
 import { patrolCapacity, patrolHour, patrolsUsed, setPatrol } from './systems/patrols';
+import { openingView, sealInvestiture } from './systems/opening';
+import { initObjectives, objectivesHour, objectivesView } from './systems/objectives';
 import { calendar, checkDefeat, checkVictory, demographyDay, remember, yearEnd } from './systems/years';
 import { addTag, dayOf, fullName, hasTag, holder, hourOf, journal, minuteOfDay, pruneIncidents } from './util';
 
@@ -102,6 +104,16 @@ export class Engine {
     world.yearStart ??= { population: world.citizens.filter((c) => c.lifeState === 'alive').length, deaths: world.stats.deaths, births: world.stats.births, arrests: world.stats.arrests, tick: world.tick };
     world.policies.births ??= 'normal';
     initInstitutions(world);
+    // Ouverture narrative (investiture, objectifs) : absente des anciennes sauvegardes.
+    world.opening ??= { status: 'done', auto: true, seats: [] };
+    if (!world.objectives) {
+      initObjectives(world);
+      // Une partie déjà avancée n'a plus besoin du premier chapitre.
+      if (Math.floor(world.tick / TICKS_PER_DAY) + 1 > 12) world.objectives!.chapter = 1;
+    }
+    world.stats.decisions ??= 0;
+    world.stats.councils ??= 0;
+    for (const def of OFFICES) if (world.offices[def.id]) world.offices[def.id].title = def.title;
     if (world.gameOver && !('kind' in world.gameOver)) world.gameOver = undefined;
     this.w = world;
     this.ctx = this.makeCtx();
@@ -119,8 +131,10 @@ export class Engine {
   tick() {
     const w = this.w;
     if (w.gameOver) return;
-    w.tick++;
     const ctx = this.ctx;
+    // Sans écran d'investiture (tests, banc), les favoris sont confirmés au premier tick.
+    if (w.opening?.status === 'pending') sealInvestiture(ctx, {}, {}, true);
+    w.tick++;
     energyStep(ctx);
     resourceStep(ctx);
     minesHour(ctx, (id, cause, perceived) => killCitizen(ctx, id, cause, perceived));
@@ -149,6 +163,7 @@ export class Engine {
     patrolHour(ctx);
     rumorsHour(ctx);
     if (w.tick > 0) evaluateEvents(ctx);
+    objectivesHour(ctx);
     // Mesure de la fiabilité de l'information : DSI + serveurs + responsables.
     const it = holder(w, 'it_director');
     let acc = 0.42 + (it ? it.skill / 250 : 0) + w.assets.servers.condition * 0.12;
@@ -308,6 +323,12 @@ export class Engine {
       case 'START_ELECTION':
         startElection(ctx, cmd.officeId);
         break;
+      case 'INVESTITURE':
+        sealInvestiture(ctx, cmd.picks, cmd.backed ?? {});
+        countStaff(ctx);
+        updateEfficiency(ctx);
+        objectivesHour(ctx);
+        break;
       case 'SUPPORT_CANDIDATE':
         if (w.election && !w.election.winnerId) w.election.supportedId = cmd.citizenId;
         break;
@@ -370,6 +391,7 @@ export class Engine {
     const ctx = this.ctx;
     if (hasTag(w, `audit_cooldown_${target}`)) return;
     addTag(w, `audit_cooldown_${target}`, 4);
+    addTag(w, 'audit_done');
     if (target === 'supplies') {
       const r = w.resources;
       const lost = Math.round(r.parts.declared - r.parts.real + (r.medicine.declared - r.medicine.real));
@@ -921,6 +943,8 @@ export class Engine {
       institutions: institutionsView(ctx),
       forecast: forecast(ctx, resources),
       councilReadyInHours: councilReadyIn(ctx),
+      opening: openingView(ctx),
+      objectives: objectivesView(w),
     };
   }
 }

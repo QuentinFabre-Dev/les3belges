@@ -1,7 +1,8 @@
 import { EVENTS } from '../data/events';
 import { SCALE, SECTOR_FLOOR, SECTOR_FLOORS, SECTOR_NAMES, TICKS_PER_DAY, TICKS_PER_HOUR, YEAR_DAYS } from '../data/world';
 import { remember, soothe } from './years';
-import { shakeTrust } from './institutions';
+import { shakeTrust, trustIn } from './institutions';
+import { patrolsUsed } from './patrols';
 import { clamp } from '../rng';
 import type { Ctx } from '../context';
 import type {
@@ -73,6 +74,8 @@ export function metric(ctx: Ctx, key: string): number | string {
     case 'office': {
       const h = holder(w, p[1] as OfficeId);
       if (p[2] === 'vacant') return h ? 0 : 1;
+      // Défaut caché du titulaire (ouverture) : « bribes », « ambition »…
+      if (p[2] === 'secret') return h?.flags.find((f) => f.startsWith('secret:'))?.slice(7) ?? '';
       return h ? (h as unknown as Record<string, number>)[p[2]] : 0;
     }
     case 'mayor':
@@ -100,6 +103,14 @@ export function metric(ctx: Ctx, key: string): number | string {
       return hasTag(w, p[1]) ? 1 : 0;
     case 'prisoners':
       return w.citizens.filter((c) => c.lifeState === 'imprisoned').length;
+    case 'count':
+      if (p[1] === 'decisions') return w.stats.decisions ?? 0;
+      if (p[1] === 'councils') return w.stats.councils ?? 0;
+      return 0;
+    case 'patrols':
+      return patrolsUsed(w);
+    case 'inst':
+      return trustIn(w, p[1] as Parameters<typeof trustIn>[1]);
   }
   return 0;
 }
@@ -216,6 +227,11 @@ function resolveContext(ctx: Ctx, def: EventDefinition, data: DecisionContext): 
       subject = w.citizens.filter((c) => alive(c) && c.flags.includes('specialist') && !c.officeId).sort((a, b) => b.age - a.age)[0];
     } else if (cx.subjectFrom.startsWith('office:')) {
       subject = holder(w, cx.subjectFrom.slice(7) as OfficeId);
+    } else if (cx.subjectFrom.startsWith('flag:')) {
+      // Habitant marqué (ex. « opening_rival » : le candidat battu à l'élection d'ouverture).
+      const flag = cx.subjectFrom.slice(5);
+      subject = w.citizens.find((c) => alive(c) && !c.officeId && c.flags.includes(flag));
+      if (subject) out.floor = out.floor ?? subject.homeFloor;
     }
     if (!subject) return null;
     out.subjectId = subject.id;
@@ -295,6 +311,7 @@ export function decide(ctx: Ctx, uid: number, choiceId: string) {
   if (!def || !choice) return;
   if (choice.requires && !choice.requires.every((c) => check(ctx, c))) return;
   w.pending.splice(idx, 1);
+  w.stats.decisions = (w.stats.decisions ?? 0) + 1;
   journal(w, `${interpolate(ctx, def.title, p)} → ${choice.label}`, 'info', p.floor);
   applyEffects(ctx, choice.effects, p);
 }
@@ -483,7 +500,7 @@ export function applyEffects(ctx: Ctx, effects: Effect[], p: DecisionContext) {
         break;
       }
       case 'promise':
-        w.promises.push({ id: w.nextUid++, text: e.text, deadlineTick: w.tick + Math.round(e.days * TICKS_PER_DAY), check: e.check });
+        w.promises.push({ id: w.nextUid++, text: e.text, deadlineTick: w.tick + Math.round(e.days * TICKS_PER_DAY), check: e.check, tag: e.tag });
         journal(w, `Promesse publique : ${e.text}`, 'info');
         break;
       case 'journal':
@@ -549,6 +566,7 @@ export function processPromises(ctx: Ctx) {
     const ok = check(ctx, pr.check);
     if (ok || w.tick >= pr.deadlineTick) {
       pr.resolved = ok;
+      if (pr.tag) addTag(w, `${pr.tag}_${ok ? 'kept' : 'broken'}`);
       for (const c of w.citizens) {
         if (c.lifeState !== 'alive') continue;
         c.trust = clamp(c.trust + (ok ? 5 : -9));
@@ -777,7 +795,7 @@ const ADVICE_DEFAULT_TITLE: Record<OfficeId, string> = {
   mayor: 'Maire',
   judge: 'Juge',
   sheriff: 'Shérif',
-  it_director: 'DSI',
+  it_director: 'Adjointe DSI',
   mechanic_chief: 'Mécanique',
   mines_chief: 'Mines',
   medical_chief: 'Médical',

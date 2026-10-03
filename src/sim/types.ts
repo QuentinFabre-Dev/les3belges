@@ -296,6 +296,7 @@ export interface PromiseRecord {
   deadlineTick: number;
   check: Condition;
   resolved?: boolean;
+  tag?: string; // tag posé si la promesse est tenue (« <tag>_kept ») ou non (« <tag>_broken »)
 }
 
 export interface WorldMemory {
@@ -430,7 +431,7 @@ export interface WorldState {
   history: HistoryPoint[];
   nextUid: number;
   gameOver?: GameOver;
-  stats: { deaths: number; births: number; arrests: number };
+  stats: { deaths: number; births: number; arrests: number; decisions?: number; councils?: number };
   difficulty: Difficulty;
   chronicle: ChronicleEntry[];
   yearReports: YearReport[];
@@ -439,6 +440,48 @@ export interface WorldState {
   freeMode?: boolean;
   blackoutDays?: number;
   institutions: Record<InstitutionId, { trust: number; history: number[] }>;
+  opening?: OpeningState;
+  objectives?: ObjectivesState;
+}
+
+// ---------------------------------------------------------------------------
+// Ouverture narrative : investiture des titulaires par le nouveau DSI, puis objectifs guidés
+
+export type OpeningSecret = 'bribes' | 'brutal' | 'ambition' | 'relic' | 'complaisant' | 'skims';
+
+export interface OpeningCandidate {
+  id: CitizenId;
+  archetype: string; // clé de l'archétype (data/opening.ts)
+  bio: string;
+  file: string; // ce que révèlent les dossiers de la DSI (parfois trompeur)
+  pledge?: string; // promesse de campagne (élection)
+  secret?: OpeningSecret; // défaut caché, révélé plus tard par les événements
+  incumbent?: boolean;
+  fromSector: SectorId; // secteur et étage d'origine (rendus s'il n'est pas retenu)
+  fromFloor: FloorId;
+}
+
+export interface OpeningSeat {
+  officeId: OfficeId;
+  mode: 'election' | 'appointment';
+  candidates: OpeningCandidate[];
+  chosenId?: CitizenId; // titulaire retenu (provisoire tant que l'investiture n'est pas scellée)
+  backedId?: CitizenId; // candidat soutenu par la DSI (élection)
+  votes?: Record<number, number>;
+  leaked?: boolean; // le soutien de la DSI a fuité
+  polls?: Record<number, { free: number; backed: number }>; // projections de la DSI (%), sans / avec soutien
+}
+
+export interface OpeningState {
+  status: 'pending' | 'done';
+  auto?: boolean; // résolue par défaut (pas d'écran d'investiture)
+  seats: OpeningSeat[];
+}
+
+export interface ObjectivesState {
+  chapter: number; // index dans CHAPTERS ; >= CHAPTERS.length : tout est terminé
+  done: Record<string, number>; // objectif -> tick de réussite
+  chapterDoneTick?: number;
 }
 
 export type Difficulty = 'accessible' | 'standard' | 'hard';
@@ -530,7 +573,7 @@ export type Effect =
   | { type: 'authority'; amount: number }
   | { type: 'office_legitimacy'; officeId: OfficeId; amount: number }
   | { type: 'lockdown'; floor: string; level: LockdownLevel }
-  | { type: 'promise'; text: string; days: number; check: Condition }
+  | { type: 'promise'; text: string; days: number; check: Condition; tag?: string }
   | { type: 'journal'; text: string; severity?: Severity }
   | { type: 'memory'; memoryType: string; text: string; severity: number; legitimacy: number }
   | { type: 'reveal_stocks' }
@@ -585,6 +628,7 @@ export type GameCommand =
   | { type: 'SET_STAFFING'; sector: SectorId; delta: number }
   | { type: 'APPOINT'; officeId: OfficeId; citizenId: CitizenId }
   | { type: 'START_ELECTION'; officeId: OfficeId }
+  | { type: 'INVESTITURE'; picks: Partial<Record<OfficeId, CitizenId>>; backed?: Partial<Record<OfficeId, CitizenId | null>> }
   | { type: 'SUPPORT_CANDIDATE'; citizenId: CitizenId }
   | { type: 'AUDIT'; target: 'supplies' | 'maintenance' | 'mines' | 'security' }
   | { type: 'COMMUNICATE'; style: 'truth' | 'reassure' | 'silence' | 'blame' }
@@ -811,6 +855,59 @@ export interface Snapshot {
   patrols: { capacity: number; used: number };
   institutions: { id: InstitutionId; label: string; trust: number; trend: number; causes: string[] }[];
   forecast: ForecastItem[];
+  opening?: OpeningView;
+  objectives?: ObjectivesView;
+}
+
+export interface OpeningCandidateView {
+  id: CitizenId;
+  name: string;
+  age: number;
+  sex: 'f' | 'm';
+  sector: SectorId;
+  sectorName: string;
+  look: number;
+  portrait?: string;
+  archetype: string;
+  archetypeLabel: string;
+  skill: number;
+  leadership: number;
+  integrity: number; // estimation de la DSI (bruitée)
+  popularity: number;
+  loyalty: number; // confiance envers la DSI
+  ambition: number;
+  traits: Trait[];
+  bio: string;
+  file: string;
+  pledge?: string;
+  incumbent?: boolean;
+  poll?: number; // intentions de vote sans soutien (%)
+  votes?: number; // résultat final (%)
+}
+
+export interface OpeningView {
+  status: OpeningState['status'];
+  auto?: boolean;
+  seats: {
+    officeId: OfficeId;
+    title: string;
+    mode: 'election' | 'appointment';
+    role: string;
+    weighs: string;
+    candidates: OpeningCandidateView[];
+    chosenId?: CitizenId;
+    backedId?: CitizenId;
+    leaked?: boolean;
+    backingBonus?: number; // points d'intention de vote qu'apporte le soutien discret de la DSI
+  }[];
+}
+
+export interface ObjectivesView {
+  chapter: number;
+  title: string;
+  intro: string;
+  finished: boolean;
+  items: { id: string; title: string; hint: string; done: boolean; view?: string; reward: string }[];
 }
 
 export interface ForecastItem {

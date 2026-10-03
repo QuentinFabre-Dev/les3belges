@@ -87,6 +87,15 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 - ✅ Alertes regroupées (« Pannes ×3 ») et panneau « À venir » (§34–36) : épuisement des stocks, pannes probables, procès, promesses, élection, factions qui se radicalisent, blocus qui s'éternisent, Jour de la Fondation et fin de mandat
 - ✅ Outils de test : saut à une heure donnée (debug), vue et store exposés en `?debug`
 
+### Ouverture narrative — « Vous êtes le DSI » (livrée)
+Retour joueur : « le tutoriel est bien au début, mais une fois fini on ne sait pas trop par où commencer ».
+- ✅ Recadrage : le joueur est le nouveau DSI du Silo 01 (Pacte, signature, tutoriel, journal, en-tête). Anselme Cort, DSI depuis trente et un ans, est tombé dans l’escalier ; la maire Ruth Jahns a rendu son écharpe, le juge Meadows s’est retiré, le shérif Holston Becker est sorti nettoyer. L’office `it_director` devient « Adjointe DSI » (Lena Sims, qui espérait le poste) ; le joueur n’est sur aucune liste
+- ✅ Investiture (`src/ui/Investiture.tsx`, `src/sim/systems/opening.ts`, `src/sim/data/opening.ts`) entre l’intro et le tutoriel : récit, puis 4 sièges × 3 habitants réels façonnés par archétype (tribun·e / héritier·e / candidat·e des profondeurs ; rigoriste / fidèle / ambitieux·se ; vétéran·e / main de fer / favori·te des étages ; sortant / comptable / débrouillard·e) — portrait, âge, secteur, compétence, leadership, intégrité estimée (bruitée), popularité, loyauté envers la DSI, ambition, traits, biographie, dossier DSI (qui trahit parfois un défaut caché), promesse de campagne
+- ✅ Élection du maire : sondage déterministe, soutien discret de la DSI (+≈15 points d’intentions, jamais garanti : l’outsider soutenu perd souvent, le favori presque jamais), fuite possible selon la transparence, élection libre plus légitime ; le maire sait qui l’a soutenu ; le mieux placé des battus devient un rival. Juge, shérif, fournitures : nominations
+- ✅ Conséquences : les statistiques des titulaires alimentent les systèmes existants (légitimité d’office, seuil des procès, autorité, détection des factions, vols), effets d’installation par archétype, promesse de campagne réelle, 8 événements conditionnés par les choix (rival battu et rumeur d’élection arrangée, shérif qui ferme les yeux ou violent, juge qui réclame le coffre ou complaisant, relique du maire, maire populaire qui descend dans les étages, adjointe rancunière). Sans écran (tests, banc), les favoris sont scellés au premier tick
+- ✅ Objectifs guidés (`src/sim/data/objectives.ts`, `src/sim/systems/objectives.ts`, carte repliable au-dessus de « À venir ») : « Chapitre 1 — Prendre ses fonctions » (investiture, première décision, premier conseil, audit, patrouille, promesse de campagne, première semaine) puis « Chapitre 2 — Tenir l’an 142 » ; conditions data-driven, petites récompenses, clic → panneau concerné ; nouvelle étape du tutoriel qui présente la carte
+- ✅ Sauvegardes anciennes migrées (`Engine.load`) ; tests `tests/opening.test.ts`
+
 ### Étape 6 — Pistes suivantes (à faire)
 - ⬜ Lois du silo modifiables et matrice des pouvoirs (§146–199, §197) : mode d'élection, durée des mandats, pouvoirs du maire/shérif/juge, autonomie des étages, votées au conseil
 - ⬜ Blocus : réouverture par étapes et exceptions (médical, mécanique, ravitaillement) (§80–99)
@@ -133,7 +142,7 @@ ligne, la lumière est un voile global par étage + des halos additifs (ambiance
 | 8 | Routines quotidiennes | ✅ | Présence par heure et par étage ; école, repas au réfectoire, bazar le soir |
 | 9 | Temps et vitesses | ✅ | |
 | 10–11 | Ressources, production/consommation, dépendances | ✅ | eau, nourriture, énergie, fer, pièces, médicaments |
-| 12 | Événements data-driven | ✅ | `src/sim/data/events.ts` — 75 événements |
+| 12 | Événements data-driven | ✅ | `src/sim/data/events.ts` — 86 événements |
 | 13 | Conséquences différées, tags | ✅ | |
 | 14 | Information imparfaite | ✅ | stocks déclarés/réels, capteurs, responsables qui minimisent |
 | 15 | Responsables de département | ✅ | 9 fonctions, avis dans les décisions |
@@ -150,7 +159,7 @@ ligne, la lumière est un voile global par étage + des halos additifs (ambiance
 | 37 | Crises explicables | ✅ | Chaîne causale par incident |
 | 41–42 | Habitants clés, fonctions institutionnelles | ✅ | |
 | 43 | Compétences, traits, adéquation au poste | 🟡 | Compétence/leadership/intégrité/traits ; adéquation fine à faire |
-| 44 | Élections, nominations, successions | ✅ | Intérim automatique |
+| 44 | Élections, nominations, successions | ✅ | Intérim automatique ; investiture d’ouverture (élection influencée, nominations) |
 | 45 | Mort/disparition d'un habitant clé | ✅ | Perte d'expertise, vacance, impact social, mémoire |
 | 46–48 | Familles, communautés, graphe social, propagation | ✅ | |
 | 49 | Légitimité et perception | 🟡 | Légitimité perçue des arrestations/morts ; vérité vs croyance à approfondir (rumeurs) |
@@ -180,6 +189,7 @@ ligne, la lumière est un voile global par étage + des halos additifs (ambiance
 
 - **Phase visuelle D (prototype -01)** — vue plongeante dans la cage, premier plan, roche en parallaxe, cendres en surface (3 images générées, 0,09 $).
 - **Rythme du temps** — vitesses en minutes de jeu par seconde : ×1 (une minute par seconde, une heure par minute réelle), ×5, ×30, ×120 ; l'horloge avance minute par minute entre deux ticks de simulation (10 min).
+- **Ouverture narrative** — le joueur est le nouveau DSI ; investiture (élection du maire influençable, nominations du juge, du shérif, des fournitures), défauts cachés et 8 événements de conséquences, objectifs guidés par chapitres (aucune image générée).
 - **Phase visuelle A + B** — rendu pixel-parfait, carte de lumière et relief par pixel, couloirs de profondeur, ombres, rayons, brume, étalonnage, écrans cathodiques (aucune image générée).
 - **Étape 5** — vie quotidienne visible, patrouilles d'adjoints, confiance par institution, alertes regroupées et « À venir » (aucune image générée).
 - **Étape 4** — années, démographie, mémoire collective, bilans, 8 fins, difficulté, son procédural, déploiement GitHub Pages (aucune image générée).

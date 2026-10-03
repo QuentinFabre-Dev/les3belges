@@ -43,8 +43,12 @@ export function NewGameDialog({ onClose }: { onClose: () => void }) {
           <button
             className="btn primary"
             onClick={() => {
+              // Pause d'abord : la nouvelle partie hérite de la vitesse et doit attendre l'investiture.
+              send({ type: 'SET_SPEED', speed: 0 });
               send({ type: 'NEW_GAME', difficulty: d });
-              send({ type: 'SET_SPEED', speed: 1 });
+              useGame.getState().setView('global');
+              // Le nouveau DSI forme d'abord la direction du silo.
+              useGame.getState().setPhase('investiture');
               onClose();
             }}
           >

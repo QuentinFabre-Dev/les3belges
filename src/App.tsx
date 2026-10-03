@@ -4,6 +4,7 @@ import { Intro } from './ui/Intro';
 import { sound } from './audio/sound';
 import { EndScreen, YearReportModal } from './ui/Chronicle';
 import { Tutorial } from './ui/Tutorial';
+import { Investiture } from './ui/Investiture';
 import { DebugPanel } from './ui/DebugPanel';
 import { severityColor } from './ui/common';
 import { FloorCard } from './ui/FloorCard';
@@ -45,11 +46,13 @@ export default function App() {
   const setPhase = useGame((g) => g.setPhase);
   const [adminName, setAdminName] = useState(() => {
     try {
-      return localStorage.getItem('silo-01:admin-name') || 'Administrateur';
+      return localStorage.getItem('silo-01:admin-name') || 'DSI';
     } catch {
-      return 'Administrateur';
+      return 'DSI';
     }
   });
+  // Une nouvelle partie vient d'être demandée : l'investiture attend le nouveau monde.
+  const [awaitingNew, setAwaitingNew] = useState(false);
   const debug = new URLSearchParams(location.search).has('debug');
   // Mode debug : accès au store depuis la console (et pour les captures automatisées).
   if (debug) Object.assign(window, { silo: useGame, siloSound: sound, siloSend: send });
@@ -84,7 +87,8 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (useGame.getState().phase === 'intro') return;
+      const ph = useGame.getState().phase;
+      if (ph === 'intro' || ph === 'investiture') return;
       if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT') return;
       const speeds: Record<string, Speed> = { ' ': 0, '1': 1, '2': 5, '3': 30, '4': 120 };
       if (e.key in speeds) {
@@ -118,10 +122,26 @@ export default function App() {
         <Intro
           onDone={(n, difficulty) => {
             setAdminName(n);
-            if (difficulty) send({ type: 'NEW_GAME', difficulty });
+            if (difficulty) {
+              send({ type: 'SET_SPEED', speed: 0 });
+              send({ type: 'NEW_GAME', difficulty });
+            }
+            setAwaitingNew(!!difficulty);
             setFlag('silo-01:intro-done', true);
-            setPhase(localStorageFlag('silo-01:tutorial-done') ? 'play' : 'tutorial');
-            if (localStorageFlag('silo-01:tutorial-done')) send({ type: 'SET_SPEED', speed: 1 });
+            // Le nouveau DSI forme d'abord la direction du silo (si la partie n'a pas commencé).
+            setPhase('investiture');
+          }}
+        />
+      )}
+      {phase === 'investiture' && ready && (
+        <Investiture
+          name={adminName}
+          awaitingNew={awaitingNew}
+          onDone={() => {
+            setAwaitingNew(false);
+            const tutorialDone = localStorageFlag('silo-01:tutorial-done');
+            setPhase(tutorialDone ? 'play' : 'tutorial');
+            if (tutorialDone) send({ type: 'SET_SPEED', speed: 1 });
           }}
         />
       )}

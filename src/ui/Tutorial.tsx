@@ -30,7 +30,7 @@ interface Step {
 const STEPS: Step[] = [
   {
     title: 'Prise de fonction',
-    text: (n) => `Bienvenue, ${n}. Le temps est suspendu le temps de vous présenter le silo. Vous pourrez rejouer ce tutoriel depuis les paramètres.`,
+    text: (n) => `Bienvenue, ${n}. Vous êtes désormais DSI du Silo 01 : vous ne gouvernez pas à visage découvert, mais rien ne se fait sans vos serveurs ni vos dossiers. Le temps est suspendu le temps de vous présenter le silo. Vous pourrez rejouer ce tutoriel depuis les paramètres.`,
     place: 'center',
   },
   {
@@ -101,9 +101,16 @@ const STEPS: Step[] = [
   },
   {
     title: 'Gouverner',
-    text: 'Institutions : nommer, révoquer, organiser une élection. Conseil : réunir vos responsables, entendre leurs désaccords, trancher. Justice : chaque arrestation mène à un procès. Opinion : rumeurs et factions qui naissent de la rancœur. Politiques : rations, quotas, délestage, communication.',
+    text: 'Institutions : le maire, le juge et le shérif que vous venez d’installer, avec leurs forces et leurs failles ; vous pouvez nommer, révoquer, provoquer une élection. Conseil : réunir vos responsables, entendre leurs désaccords, trancher. Justice : chaque arrestation mène à un procès. Opinion : rumeurs et factions qui naissent de la rancœur. Politiques : rations, quotas, délestage, communication.',
     target: '[data-tut=nav-institutions]',
     place: 'right',
+  },
+  {
+    title: 'Par où commencer',
+    text: 'Cort vous a laissé une liste : vos premiers objectifs. Chacun indique où agir (cliquez dessus) et rapporte un peu de légitimité ou de confiance. Repliez la carte quand vous n’en avez plus besoin.',
+    target: '[data-tut=objectives]',
+    place: 'left',
+    enter: () => useGame.getState().setView('global'),
   },
   {
     title: 'À vous',
