@@ -8,5 +8,5 @@ export default defineConfig({
   base: process.env.BASE_PATH ?? '/',
   plugins: [react()],
   worker: { format: 'es' },
-  test: { environment: 'node' },
+  test: { environment: 'node', exclude: ['**/node_modules/**', '**/dist/**', '.claude/**'] },
 } as never);
