@@ -131,7 +131,7 @@ export const OFFICES: OfficeDef[] = [
   { id: 'mayor', title: 'Maire', sector: 'admin', succession: 'election', portrait: 'mayor' },
   { id: 'judge', title: 'Juge', sector: 'admin', succession: 'appointment', portrait: 'judge' },
   { id: 'sheriff', title: 'Shérif', sector: 'security', succession: 'appointment', portrait: 'sheriff' },
-  { id: 'it_director', title: 'Directrice DSI', sector: 'admin', succession: 'appointment', portrait: 'it' },
+  { id: 'it_director', title: 'Adjointe DSI', sector: 'admin', succession: 'appointment', portrait: 'it' },
   { id: 'mechanic_chief', title: 'Chef mécanique', sector: 'mechanical', succession: 'appointment', portrait: 'mechanic' },
   { id: 'mines_chief', title: 'Responsable des mines', sector: 'mines', succession: 'appointment', portrait: 'miner' },
   { id: 'medical_chief', title: 'Responsable médicale', sector: 'medical', succession: 'appointment', portrait: 'doctor' },

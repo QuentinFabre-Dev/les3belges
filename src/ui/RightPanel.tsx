@@ -3,6 +3,7 @@ import { send, useGame } from '../game/store';
 import type { DecisionView, IncidentView, Severity } from '../sim/types';
 import type { View } from '../game/store';
 import { Icon, Portrait, RoomThumb, severityColor, severityLabel } from './common';
+import { ObjectivesCard } from './Objectives';
 
 export function DecisionCard({ d, compact = false }: { d: DecisionView; compact?: boolean }) {
   const [hover, setHover] = useState<string | null>(null);
@@ -81,7 +82,7 @@ export function RightPanel() {
       ) : (
         <div className="panel calm">
           <h3>Aucune décision en attente</h3>
-          <p className="muted">Le silo suit son cours. Surveillez les indicateurs : les meilleurs administrateurs agissent avant les crises.</p>
+          <p className="muted">Le silo suit son cours. Surveillez les indicateurs : les meilleurs DSI agissent avant les crises.</p>
         </div>
       )}
       {others.length > 0 && (
@@ -104,6 +105,7 @@ export function RightPanel() {
           ))}
         </div>
       )}
+      <ObjectivesCard />
       {s.forecast.length > 0 && (
         <div className="panel">
           <header>

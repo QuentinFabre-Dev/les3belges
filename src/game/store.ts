@@ -26,7 +26,7 @@ function loadSettings(): RenderSettings {
   return { density: 150, secondary: 'standard', lighting: 'medium', adaptive: true, volume: 0.6, muted: false };
 }
 
-export type Phase = 'intro' | 'tutorial' | 'play';
+export type Phase = 'intro' | 'investiture' | 'tutorial' | 'play';
 
 const flag = (k: string) => {
   try {

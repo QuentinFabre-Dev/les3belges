@@ -28,7 +28,7 @@ describe('étape 4 : années, mémoire collective, fins', () => {
   });
 
   it('une crise du même type réveille un souvenir ancien', () => {
-    const e = new Engine(createWorld(42));
+    const e = new Engine(createWorld(41)); // graine sans véritable accident minier pendant ces 9 jours
     const old = remember(e.ctx, 'mine_accident', 60, { floors: ['mines'], sectors: ['mines'] });
     runDays(e, 9);
     const miners = e.w.citizens.filter((c) => c.lifeState === 'alive' && c.sector === 'mines');

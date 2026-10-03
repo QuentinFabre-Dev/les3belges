@@ -1,7 +1,8 @@
 # SILO-01 — Gestion externe
 
-Jeu de gestion web inspiré de *Silo* : vous administrez un silo souterrain de 1 400 habitants.
-Vous ne contrôlez pas les habitants : vous arbitrez entre des solutions imparfaites, et le silo réagit,
+Jeu de gestion web inspiré de *Silo* : vous venez d'être nommé·e DSI (directeur·rice des systèmes
+d'information) d'un silo souterrain de 3 000 habitants — le poste qui, dans l'ombre, tient les secrets
+du Pacte et le vrai pouvoir. Vous ne contrôlez pas les habitants : vous arbitrez entre des solutions imparfaites, et le silo réagit,
 parfois plusieurs jours plus tard.
 
 ![aperçu](docs/apercu.png)
@@ -15,8 +16,10 @@ npm test           # simulation headless (vitest)
 npm run build      # typecheck + build de production
 ```
 
-Au premier lancement : introduction (le Pacte), puis tutoriel guidé. Les deux sont rejouables
-depuis les Paramètres. Ajouter `?debug` à l'URL affiche des outils de test (pannes, crises).
+Au premier lancement : introduction (le Pacte), investiture (le nouveau DSI choisit le maire — élu,
+avec ou sans son soutien discret —, le juge, le shérif et le chef des fournitures parmi trois habitants
+chacun), puis tutoriel guidé, puis des objectifs par chapitres (« Prendre ses fonctions »). Intro et
+tutoriel sont rejouables depuis les Paramètres. Ajouter `?debug` à l'URL affiche des outils de test (pannes, crises).
 `npm run balance` lance le banc d'équilibrage (joueur passif vs joueur automatique).
 Le suivi de développement est dans [`docs/PLAN.md`](docs/PLAN.md).
 
@@ -44,11 +47,15 @@ src/
       patrols.ts       Patrouilles d'adjoints par étage
       institutions.ts  Confiance par institution (mairie, justice, sécurité, mécanique, médical, DSI)
       forecast.ts      Anticipation : ce qui va arriver si rien ne change
+      opening.ts       Investiture : candidats tirés de la population, élection d'ouverture, scellement
+      objectives.ts    Objectifs guidés par chapitres (détection de progression, récompenses)
       events.ts        Moteur data-driven : conditions, effets génériques, effets différés,
                        promesses, élections, nominations, blocus
     data/
       world.ts         Étages, secteurs, fonctions institutionnelles
-      events.ts        78 événements/décisions (contenu, sans code moteur)
+      events.ts        86 événements/décisions (contenu, sans code moteur)
+      opening.ts       Récit d'ouverture, sièges et archétypes de candidats (bio, défaut caché, promesse)
+      objectives.ts    Chapitres d'objectifs (conditions data-driven)
       difficulty.ts    Accessible / Standard / Difficile (§198)
   render/              PixiJS (main thread)
     SiloView.ts        Silo vertical, caméra/zoom, culling des étages, éclairage, blocus,

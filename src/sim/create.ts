@@ -31,6 +31,8 @@ import type {
 } from './types';
 import { journal, message } from './util';
 import { initInstitutions } from './systems/institutions';
+import { prepareOpening } from './systems/opening';
+import { initObjectives } from './systems/objectives';
 
 export const WORLD_VERSION = 1;
 
@@ -378,14 +380,20 @@ export function createWorld(seed = Date.now() % 2147483647, difficulty: Difficul
     institutions: {} as WorldState['institutions'],
   };
   initInstitutions(w);
+  initObjectives(w);
 
-  journal(w, 'Prise de fonction de l’administration externe du Silo-01.', 'info');
+  journal(w, 'Jour 1 : un nouveau DSI prend ses fonctions au -03. Le siège du maire, du juge et du shérif est vide.', 'info');
   message(
     w,
-    'Maire — Ruth Jahns',
-    'Bienvenue',
-    'Le silo compte ' + citizens.length + ' habitants. La pompe principale montre des signes d’usure et les mines réclament plus de moyens. Les responsables vous feront remonter leurs problèmes. Gardez à l’esprit que leurs rapports ne sont pas toujours exacts.',
+    'Ancienne maire — Ruth Jahns',
+    'Passation',
+    'Je pars avec mes registres et ma toux. Le silo compte ' +
+      citizens.length +
+      ' habitants. La pompe principale montre des signes d’usure et les mines réclament plus de moyens. Les responsables vous feront remonter leurs problèmes ; leurs rapports ne sont pas toujours exacts. Choisissez bien ceux qui me remplaceront : le silo les jugera, mais c’est vous qu’il tiendra pour responsable.',
     officeHolderIds.mayor,
   );
+  // Ouverture : les anciens titulaires se retirent, les candidats sont tirés de la population.
+  prepareOpening(w, rng);
+  w.rng = rng.state;
   return w;
 }

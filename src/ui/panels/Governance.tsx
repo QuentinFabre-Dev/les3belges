@@ -6,6 +6,14 @@ import { Bar, Icon, Panel, Portrait } from '../common';
 
 const close = () => useGame.getState().setView('global');
 
+const playerName = () => {
+  try {
+    return localStorage.getItem('silo-01:admin-name') || 'DSI';
+  } catch {
+    return 'DSI';
+  }
+};
+
 export function InstitutionsPanel() {
   const s = useGame((g) => g.snapshot)!;
   const selectCitizen = useGame((g) => g.selectCitizen);
@@ -14,7 +22,7 @@ export function InstitutionsPanel() {
   return (
     <Panel title="Institutions du silo" onClose={close}>
       <div className="row gap wrap small muted">
-        <span>Légitimité de l’administration : {s.psychology.legitimacy}</span>
+        <span>Légitimité de votre gouvernement : {s.psychology.legitimacy}</span>
         <span>Autorité : {s.psychology.authority}</span>
         <span>Confiance moyenne : {s.psychology.trust}</span>
         <span>Peur : {s.psychology.fear}</span>
@@ -36,7 +44,7 @@ export function InstitutionsPanel() {
               </div>
               <span className="small">{c.support}%</span>
               {e.winnerId === undefined && (
-                <button className={`btn small ${e.supportedId === c.id ? 'active' : ''}`} onClick={() => send({ type: 'SUPPORT_CANDIDATE', citizenId: c.id })} title="Soutien discret de l’administration. Peut fuiter.">
+                <button className={`btn small ${e.supportedId === c.id ? 'active' : ''}`} onClick={() => send({ type: 'SUPPORT_CANDIDATE', citizenId: c.id })} title="Soutien discret de la DSI. Peut fuiter.">
                   Soutenir
                 </button>
               )}
@@ -45,6 +53,16 @@ export function InstitutionsPanel() {
           <p className="tiny muted">Sondages issus des intentions de vote des habitants (confiance, proximité, secteur, relations).</p>
         </div>
       )}
+      <div className="card office player-office">
+        <div className="row gap">
+          <Portrait sector="admin" look={7} size={64} />
+          <div className="grow">
+            <div className="muted small">Directeur·rice des systèmes d’information</div>
+            <strong>{playerName()} — vous</strong>
+            <p className="small muted">Votre siège n’est sur aucune liste : il ne s’élit pas et ne se nomme pas, il se transmet. Confiance du silo envers la DSI : {s.institutions.find((i) => i.id === 'it')?.trust ?? '—'}.</p>
+          </div>
+        </div>
+      </div>
       <div className="offices">
         {s.offices.map((o) => (
           <div key={o.id} className="card office">

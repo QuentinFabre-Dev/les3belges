@@ -52,6 +52,7 @@ export function judgeThreshold(ctx: Ctx) {
   if (judge.traits.includes('skeptical')) t += 4;
   if (judge.traits.includes('loyal')) t -= 6;
   if (judge.integrity < 40) t -= 10; // juge complaisant
+  if (hasTag(ctx.w, 'judge_hostile')) t += 6; // juge en conflit avec la DSI : il exige des dossiers en béton
   return t;
 }
 

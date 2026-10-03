@@ -67,7 +67,7 @@ export function Intro({ onDone }: { onDone: (name: string, difficulty?: Difficul
       ),
       right: (
         <>
-          <Article n="VIII">L’Administration externe veille sur le Silo. Elle ne commande pas aux habitants : elle arbitre, alloue et tranche.</Article>
+          <Article n="VIII">La DSI veille sur le Silo et garde la mémoire de ce qui fut. Elle ne commande pas aux habitants : elle arbitre, alloue, tranche — et se tait.</Article>
           <p className="pact-text pact-warn">Les responsables lui rendront compte. Ils ne lui diront pas toujours la vérité.</p>
           <p className="pact-text pact-warn">Chaque décision a un prix. Certaines se paient des semaines plus tard.</p>
         </>
@@ -96,7 +96,7 @@ export function Intro({ onDone }: { onDone: (name: string, difficulty?: Difficul
             Signé,
           </label>
           <input id="pact-name" className="pact-input" value={name} maxLength={28} placeholder="votre nom" onChange={(e) => setName(e.target.value)} autoFocus />
-          <p className="pact-small">Administrateur·rice externe du Silo 01</p>
+          <p className="pact-small">Directeur·rice des systèmes d’information du Silo 01</p>
           <button className="pact-btn" type="submit">
             Signer le Pacte
           </button>
@@ -132,7 +132,7 @@ export function Intro({ onDone }: { onDone: (name: string, difficulty?: Difficul
   }, [stage]);
 
   const finish = () => {
-    const n = name.trim() || 'Administrateur';
+    const n = name.trim() || 'DSI';
     try {
       localStorage.setItem('silo-01:admin-name', n);
     } catch {
@@ -167,7 +167,7 @@ export function Intro({ onDone }: { onDone: (name: string, difficulty?: Difficul
           {stage === 'opening' && <div className="flash" />}
           {stage === 'closed' && (
             <div className="intro-caption">
-              <p>Archives du judiciaire — niveau -01</p>
+              <p>Coffre de la DSI — niveau -03</p>
               <button className="pact-btn" onClick={() => setStage('opening')}>
                 Ouvrir le Pacte
               </button>
@@ -209,8 +209,8 @@ export function Intro({ onDone }: { onDone: (name: string, difficulty?: Difficul
       )}
       {stage === 'descent' && (
         <div className="prologue descent">
-          <p className="prologue-line">Jour 1, 06:00.</p>
-          <p className="prologue-line delay">Le Silo compte {POPULATION_START.toLocaleString('fr-FR')} âmes. Elles ne savent pas encore votre nom, {name.trim() || 'Administrateur'}.</p>
+          <p className="prologue-line">Jour 1, 05:40. La clé du coffre est à votre cou.</p>
+          <p className="prologue-line delay">Le Silo compte {POPULATION_START.toLocaleString('fr-FR')} âmes, et pas de maire. Elles ne savent pas encore votre nom, {name.trim() || 'DSI'}.</p>
         </div>
       )}
       <button className="intro-skip" onClick={finish}>

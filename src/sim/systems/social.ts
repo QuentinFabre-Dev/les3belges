@@ -499,7 +499,9 @@ export function supplyTheftDay(ctx: Ctx) {
   const scarcity = 1 - Math.min(1, w.resources.parts.real / 250) * 0.5 - Math.min(1, w.resources.medicine.real / 400) * 0.5;
   const corruption = chief ? (100 - chief.integrity) / 100 : 0.6;
   const guarded = w.floors.filter((f) => f.sector === 'supplies').reduce((s, f) => s + patrolOf(f), 0);
-  const security = (sheriff ? sheriff.skill / 100 : 0.3) * (ctx.staff.security / Math.max(1, w.sectors.security.staffingTarget)) * (hasTag(w, 'supply_controls') ? 1.6 : 1) + guarded * 0.25;
+  // Un shérif qui ferme les yeux contre des services (défaut caché de l'investiture) laisse filer les voleurs.
+  const bent = sheriff?.flags.includes('secret:bribes') && !hasTag(w, 'sheriff_reformed') ? 0.55 : 1;
+  const security = (sheriff ? (sheriff.skill / 100) * bent : 0.3) * (ctx.staff.security / Math.max(1, w.sectors.security.staffingTarget)) * (hasTag(w, 'supply_controls') ? 1.6 : 1) + guarded * 0.25;
   const tension = w.psychology.fear / 200 + (100 - w.psychology.morale) / 200;
   const p = clamp(0.05 + scarcity * 0.25 + corruption * 0.3 + tension * 0.2 - security * 0.35, 0.01, 0.8);
   if (!rng.chance(p)) return;

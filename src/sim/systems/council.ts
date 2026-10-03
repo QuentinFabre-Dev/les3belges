@@ -6,7 +6,7 @@ import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../data/world';
 import { clamp } from '../rng';
 import type { Ctx } from '../context';
 import type { CouncilSession, CouncilView, Effect, OfficeId } from '../types';
-import { fullName, holder, journal } from '../util';
+import { addTag, fullName, holder, journal } from '../util';
 import { applyEffects } from './events';
 import { autonomyDays } from './economy';
 
@@ -336,6 +336,8 @@ export function councilChoice(ctx: Ctx, proposalId: string) {
   const p = c.proposals.find((x) => x.id === proposalId);
   if (!p) return;
   c.resolved = proposalId;
+  w.stats.councils = (w.stats.councils ?? 0) + 1;
+  addTag(w, 'council_held');
   applyEffects(ctx, p.effects, {});
   for (const s of c.statements) {
     const h = holder(w, s.officeId);
