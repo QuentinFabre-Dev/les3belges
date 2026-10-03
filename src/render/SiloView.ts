@@ -1,6 +1,7 @@
-import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture, TextureSource, TilingSprite } from 'pixi.js';
+import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture, TextureSource, TilingSprite, type Renderer } from 'pixi.js';
 import type { FloorView, LockdownLevel, SectorId, Snapshot } from '../sim/types';
 import { Ambient } from './ambient';
+import { Lighting, type Light } from './lighting';
 import { SPOTS, type RoomSpots } from './hotspots';
 import { NavigationGraph } from './navigation';
 import { CHAR_H, CHAR_W, FRAMES, FRAME_COUNT, atlasRow, buildCitizenAtlas, type Anim } from './sprites';
@@ -71,6 +72,8 @@ interface Npc {
   vanish: boolean;
   eating: boolean;
   yOff: number; // assis sur une couchette
+  lane: number; // 0 = devant, 2 = au fond de la salle
+  shadow: Sprite;
 }
 
 interface Queue {
@@ -115,8 +118,17 @@ export class SiloView {
   private ambient = new Ambient();
   private taken = new Set<string>();
   private queues = new Map<string, Queue>();
-  private screens: { floor: number; feed: TilingSprite; grime: Sprite; noise: Sprite; base: number }[] = [];
+  private screens: { floor: number; feed: TilingSprite; grime: Sprite; noise: Sprite; base: number; roll: Sprite; top: number; h: number; cx: number; cy: number }[] = [];
   private elevator = new Graphics();
+  private shadowLayer = new Container();
+  private shadowTex!: Texture;
+  private lighting!: Lighting;
+  private normalRoots: Container[] = [];
+  private fogs: Sprite[] = [];
+  private lit = false;
+  private ox = 0; // position écran de l'origine du monde
+  private oy = 0;
+  private gradeT = 0;
   private elevatorY = 0;
   private elevatorTarget = 0;
   private elevatorWait = 0;
@@ -132,6 +144,7 @@ export class SiloView {
   fps = 60;
   private effDensity: number;
   private effSecondary: RenderSettings['secondary'];
+  private effLighting: RenderSettings['lighting'];
   private drag: { x: number; y: number; cx: number; cy: number; moved: boolean } | null = null;
   onSelectFloor?: (id: string) => void;
   onSelectRoom?: (id: string, side: 'left' | 'right') => void;
@@ -160,6 +173,7 @@ export class SiloView {
   private constructor(private settings: RenderSettings) {
     this.effDensity = settings.density;
     this.effSecondary = settings.secondary;
+    this.effLighting = settings.lighting;
   }
 
   static async create(el: HTMLElement, settings: RenderSettings) {
@@ -171,7 +185,7 @@ export class SiloView {
   private async init(el: HTMLElement) {
     TextureSource.defaultOptions.scaleMode = 'nearest';
     this.app = new Application();
-    await this.app.init({ resizeTo: el, background: '#0a0c0f', antialias: false, autoDensity: true, resolution: Math.min(2, window.devicePixelRatio || 1), roundPixels: true });
+    await this.app.init({ preference: 'webgl', resizeTo: el, background: '#0a0c0f', antialias: false, autoDensity: true, resolution: Math.min(2, window.devicePixelRatio || 1), roundPixels: true });
     el.appendChild(this.app.canvas);
     this.app.canvas.style.imageRendering = 'pixelated';
 
@@ -191,8 +205,11 @@ export class SiloView {
     this.bubbleTex = Texture.from(bubbleCanvas());
     this.alertTex = Texture.from(alertBubbleCanvas());
 
-    this.world.addChild(this.bg, this.floorLayer, this.npcLayer, this.ambient.layer, this.fxLayer);
-    this.app.stage.addChild(this.world, this.ui);
+    this.shadowTex = Texture.from(shadowCanvas());
+    this.npcLayer.sortableChildren = true;
+    this.world.addChild(this.bg, this.floorLayer, this.shadowLayer, this.npcLayer, this.ambient.layer, this.fxLayer);
+    this.lighting = new Lighting(this.app.renderer as Renderer);
+    this.app.stage.addChild(this.world, this.lighting.display, this.lighting.lightSprite, this.ui);
     this.app.stage.eventMode = 'static';
     this.app.stage.hitArea = this.app.screen;
     this.bindInput();
@@ -289,7 +306,27 @@ export class SiloView {
         tags.push(t);
         root.addChild(t);
       }
-      root.addChild(dark, ambL.over, ambR.over, red, lock, highlight);
+      // Brume de profondeur : plus on descend, plus l'air est épais.
+      const fog = new Sprite(Texture.WHITE);
+      fog.width = SILO_W;
+      fog.height = ROOM_H;
+      fog.tint = 0x182230;
+      fog.alpha = 0.03 + (f.index / Math.max(1, floors.length - 1)) * 0.17;
+      this.fogs.push(fog);
+      root.addChild(fog, dark, ambL.over, ambR.over, red, lock, highlight);
+      // Passe de relief : cartes de normales des deux ailes, au même endroit que les salles.
+      const nroot = new Container();
+      nroot.y = f.index * FLOOR_H;
+      const nl = this.ambient.normalTex(f.left, false);
+      const nr = this.ambient.normalTex(f.right, f.left === f.right);
+      if (nl) nroot.addChild(new Sprite(nl));
+      if (nr) {
+        const sp = new Sprite(nr);
+        sp.x = SHAFT_X + SHAFT_W;
+        nroot.addChild(sp);
+      }
+      this.lighting.normalWorld.addChild(nroot);
+      this.normalRoots.push(nroot);
       this.floorLayer.addChild(root);
 
       const label = new Text({ text: f.label, style: { fontFamily: 'Rajdhani, sans-serif', fontSize: 22, fontWeight: '700', fill: 0xd8dde3 } });
@@ -316,9 +353,13 @@ export class SiloView {
       const bubble = new Sprite(this.bubbleTex);
       bubble.anchor.set(0.5, 1);
       bubble.visible = false;
+      const shadow = new Sprite(this.shadowTex);
+      shadow.anchor.set(0.5, 0.5);
+      shadow.visible = false;
+      this.shadowLayer.addChild(shadow);
       this.npcLayer.addChild(sp);
       this.fxLayer.addChild(bubble);
-      this.npcs.push({ sp, bubble, active: false, floor: 0, x: 0, y: 0, facing: 1, sector: 'residential', row: 0, anim: 'idle', ft: 0, fi: 0, mode: 'idle', task: 'wander', timer: 0, tx: 0, act: 'idle', route: [], stair: null, leaving: false, authorized: false, speed: 16, fade: 1, bubbleT: 0, child: false, vanish: false, eating: false, yOff: 0 });
+      this.npcs.push({ sp, bubble, active: false, floor: 0, x: 0, y: 0, facing: 1, sector: 'residential', row: 0, anim: 'idle', ft: 0, fi: 0, mode: 'idle', task: 'wander', timer: 0, tx: 0, act: 'idle', route: [], stair: null, leaving: false, authorized: false, speed: 16, fade: 1, bubbleT: 0, child: false, vanish: false, eating: false, yOff: 0, lane: 0, shadow });
     }
     for (let i = 0; i < 80; i++) {
       const sp = new Sprite(Texture.WHITE);
@@ -356,14 +397,24 @@ export class SiloView {
     noise.tint = 0x9fb0a0;
     noise.alpha = 0;
     const mask = new Sprite(Texture.from(`${base}assets/rooms/${tex}_screen.png`));
+    // Tube cathodique : lignes de balayage et bande lumineuse qui défile.
+    const scan = new TilingSprite({ texture: Texture.from(scanlineCanvas()), width: rect.w, height: rect.h });
+    scan.position.set(rect.x, rect.y);
+    scan.alpha = 0.55;
+    const roll = new Sprite(Texture.WHITE);
+    roll.position.set(rect.x, rect.y);
+    roll.width = rect.w;
+    roll.height = 3;
+    roll.alpha = 0.07;
+    roll.blendMode = 'add';
     const content = new Container();
-    content.addChild(feed, grime, noise);
+    content.addChild(feed, grime, noise, scan, roll);
     content.mask = mask;
     holder.addChild(content, mask);
     // Point de départ de la vue : la ville en ruine à l'horizon.
     const start = -surface.width * scale * 0.62;
     feed.tilePosition.x = start;
-    this.screens.push({ floor, feed, grime, noise, base: start });
+    this.screens.push({ floor, feed, grime, noise, base: start, roll, top: rect.y, h: rect.h, cx: (mirrored ? wx + ROOM_W - (rect.x + rect.w / 2) : wx + rect.x + rect.w / 2), cy: rect.y + rect.h / 2 });
     return holder;
   }
 
@@ -388,6 +439,7 @@ export class SiloView {
     this.settings = settings;
     this.effDensity = settings.density;
     this.effSecondary = settings.secondary;
+    this.effLighting = settings.lighting;
   }
 
   setSelected(id?: string) {
@@ -489,7 +541,7 @@ export class SiloView {
     f.sp.position.set(Math.round(f.x), Math.round(f.y));
     f.sp.scale.x = f.facing;
     f.sp.tint = f.act === 'sleep' ? 0x9090a0 : 0xffffff;
-    f.label.position.set(this.world.x + f.x * this.zoom, this.world.y + (f.y - CHAR_H - 3) * this.zoom);
+    f.label.position.set(this.ox + f.x * this.zoom, this.oy + (f.y - CHAR_H - 3) * this.zoom);
     if (this.followCam) {
       const viewH = this.app.screen.height / this.zoom;
       const wantY = f.y - viewH / 2;
@@ -608,8 +660,21 @@ export class SiloView {
     if (!this.snap || !this.floors.length) return;
     const s = this.snap;
     const W = this.app.screen.width;
-    this.world.scale.set(this.zoom);
-    this.world.position.set(Math.round(W / 2 - this.camX * this.zoom), Math.round(-this.camY * this.zoom));
+    const H = this.app.screen.height;
+    this.ox = Math.round(W / 2 - this.camX * this.zoom);
+    this.oy = Math.round(-this.camY * this.zoom);
+    // Éclairage par pixel : rendu à la résolution native du monde, puis agrandi (pixels nets).
+    this.lit = this.effLighting !== 'low' && this.zoom >= 0.6;
+    if (this.lit) {
+      if (this.world.parent) this.world.parent.removeChild(this.world);
+    } else if (!this.world.parent) this.app.stage.addChildAt(this.world, 0);
+    this.lighting.display.visible = this.lighting.lightSprite.visible = this.lit;
+    if (!this.lit) {
+      this.world.scale.set(this.zoom);
+      this.world.position.set(this.ox, this.oy);
+    }
+    const ambientBands: [number, number, number][] = [[-SURFACE_H - 200, 0, 1]];
+    const lights: Light[] = [];
 
     const [v0, v1] = this.visibleRange();
     const time = performance.now() / 1000;
@@ -621,9 +686,9 @@ export class SiloView {
       const vis = g.index >= v0 - 1 && g.index <= v1 + 1;
       g.root.visible = vis;
       // Étiquettes en espace écran (texte net quel que soit le zoom)
-      const sy = this.world.y + (g.index * FLOOR_H + 10) * this.zoom;
+      const sy = this.oy + (g.index * FLOOR_H + 10) * this.zoom;
       // Étiquettes à gauche du silo ; si le bord gauche sort de l'écran, elles s'accrochent au bord.
-      const edge = this.world.x - (WALL_W + 10) * this.zoom;
+      const edge = this.ox - (WALL_W + 10) * this.zoom;
       const inside = edge < 120;
       const sx = inside ? 10 : edge;
       for (const t of [g.label, g.name, g.lockText]) t.anchor.set(inside ? 0 : 1, 0);
@@ -652,20 +717,30 @@ export class SiloView {
       if (f.sector === 'residential' && night) darkness += 0.42;
       else if (f.sector !== 'residential' && !WORK_FLOORS_24H.has(f.sector) && (h >= 18 || h < 7)) darkness += 0.3;
       darkness += (1 - f.power) * 0.62;
-      if (this.settings.lighting === 'low') darkness *= 0.8;
+      if (this.effLighting === 'low') darkness *= 0.8;
       let flick = 0;
       if (secondary && (f.power < 0.75 || f.alert === 'critical')) {
         g.flicker -= dt;
         if (g.flicker < 0) g.flicker = Math.random() < 0.08 ? 0.12 : 0.6 * Math.random();
         flick = g.flicker > 0 && g.flicker < 0.12 ? 0.25 : 0;
       }
-      g.dark.alpha = Math.min(0.85, darkness + flick);
-      this.ambient.updateFloor(g.index, f, s, dt, time, flick, { secondary: this.effSecondary, lighting: this.settings.lighting, zoom: this.zoom });
+      g.dark.alpha = this.lit ? 0 : Math.min(0.85, darkness + flick);
+      this.normalRoots[g.index].visible = vis;
+      if (this.lit) {
+        // Lumière ambiante de l'étage ; les lampes font le reste.
+        let amb = 0.56 - darkness * 0.6 - flick * 0.5;
+        if (blackout && f.power < 0.5) amb = 0.13;
+        ambientBands.push([g.index * FLOOR_H, (g.index + 1) * FLOOR_H, Math.max(0.06, Math.min(0.9, amb))]);
+        // Gyrophares de secours pendant une panne générale.
+        if (blackout && f.power < 0.5) lights.push({ x: LANDING_X, y: g.index * FLOOR_H + 14, r: 90, i: 1.4 * Math.max(0, Math.sin(time * 4 + g.index)), color: 0xff2a14, h: 30 });
+      }
+      this.ambient.updateFloor(g.index, f, s, dt, time, flick, { secondary: this.effSecondary, lighting: this.effLighting, zoom: this.zoom, lit: this.lit });
+      if (this.lit) for (const l of this.ambient.lights.get(g.index) ?? []) lights.push(l);
       let redA = 0;
       if (blackout && f.power < 0.5) redA = 0.1 + 0.06 * Math.sin(time * 3);
       if (f.unrest >= 4) redA = Math.max(redA, 0.12 + 0.05 * Math.sin(time * 5));
       if (f.lockdown === 'full') redA = Math.max(redA, 0.05 + 0.03 * Math.sin(time * 2));
-      g.red.alpha = this.settings.lighting === 'low' ? redA * 0.6 : redA;
+      g.red.alpha = this.effLighting === 'low' ? redA * 0.6 : redA;
       if (g.lockdown !== 'open') g.lock.alpha = 0.75 + 0.25 * Math.sin(time * 4);
       g.tags.forEach((t, k) => {
         t.visible = !!f.factionSymbol && (k === 0 || f.unrest >= 1 || k < 2);
@@ -684,6 +759,9 @@ export class SiloView {
       sc.grime.alpha = Math.min(0.92, (1 - s.lens) * 1.1);
       sc.feed.alpha = 0.55 + s.lens * 0.45;
       sc.noise.alpha = secondary && Math.random() < 0.03 ? 0.08 + Math.random() * 0.12 : Math.max(0, sc.noise.alpha - dt);
+      sc.roll.y = sc.top + ((time * 9 + sc.floor * 7) % sc.h);
+      // L'écran éclaire la salle d'une lueur froide.
+      if (this.lit && sc.floor >= v0 - 1 && sc.floor <= v1 + 1) lights.push({ x: sc.cx, y: sc.floor * FLOOR_H + sc.cy, r: 80, i: 0.35 + s.lens * 0.55, color: 0xa898c8, h: 26 });
     }
     this.updateElevator(dt, v0, v1);
     this.reconcileT -= dt;
@@ -698,6 +776,47 @@ export class SiloView {
     this.ambient.updateParticles(dt, time);
     this.updateFollow(dt * mul);
     this.adaptive(dt);
+    if (this.lit) this.composeLighting(W, H, s, lights, ambientBands, time, dt);
+  }
+
+  /** Rend le monde à sa résolution native, calcule la lumière et compose l'image finale. */
+  private composeLighting(W: number, H: number, s: Snapshot, lights: Light[], ambient: [number, number, number][], time: number, dt: number) {
+    const z = this.zoom;
+    const left = this.camX - W / 2 / z;
+    const top = this.camY;
+    const vx = Math.floor(left);
+    const vy = Math.floor(top);
+    const vw = Math.ceil(W / z) + 2;
+    const vh = Math.ceil(H / z) + 2;
+    this.world.scale.set(1);
+    this.world.position.set(-vx, -vy);
+    const night = s.hour >= 21 || s.hour < 6;
+    // Torches des adjoints la nuit ou dans le noir ; lumière de la cabine d'ascenseur.
+    for (const n of this.npcs) {
+      if (!n.active || n.task !== 'patrol') continue;
+      const f = s.floors[n.floor];
+      if (night || f.power < 0.5) lights.push({ x: n.x + n.facing * 7, y: n.y - 14, r: 38, i: 1.5, color: 0xfff0c8, h: 8 });
+    }
+    if (this.elevator.alpha > 0.9) lights.push({ x: this.elevator.x + 4, y: this.elevatorY + 6, r: 26, i: 0.9, color: 0xffd27a, h: 6 });
+    ambient.push([this.floors.length * FLOOR_H, this.floors.length * FLOOR_H + 2000, 0.35]);
+    const relief = this.effLighting === 'high' ? 1 : 0.7;
+    this.lighting.render(this.world, vx, vy, vw, vh, lights, ambient, relief);
+    this.lighting.place(this.ox + vx * z, this.oy + vy * z, z);
+    // Étalonnage : matin chaud, nuit bleutée, panne désaturée, émeute rougie.
+    this.gradeT -= dt;
+    if (this.gradeT <= 0) {
+      this.gradeT = 0.5;
+      const g = this.lighting.grade;
+      g.reset();
+      const h = s.hour;
+      if (h >= 6 && h < 9) g.tint(0xffe6cc, true);
+      else if (h >= 18 && h < 21) g.tint(0xffd9bc, true);
+      else if (night) g.tint(0xc4cfee, true);
+      if (s.energy.generatorState === 'failed') g.saturate(-0.35, true);
+      if (s.floors.some((f) => f.unrest >= 4)) g.tint(0xffdcd6, true);
+      g.contrast(0.08, true);
+    }
+    void time;
   }
 
   private drawLock(g: FloorGfx) {
@@ -856,6 +975,9 @@ export class SiloView {
     n.vanish = false;
     n.eating = false;
     n.spot = undefined;
+    // Profondeur : certains passent au fond de la salle.
+    const lr = Math.random();
+    n.lane = lr < 0.5 ? 0 : lr < 0.8 ? 1 : 2;
     // Enfants : nombreux à l'école en journée, quelques-uns ailleurs (jamais la nuit).
     const h = this.snap!.hour;
     const schoolTime = h >= 6 && h < 16 && this.snap!.floors[floor].left === 'school';
@@ -890,6 +1012,7 @@ export class SiloView {
     n.vanish = false;
     n.eating = false;
     n.active = false;
+    n.shadow.visible = false;
     n.sp.visible = false;
     n.bubble.visible = false;
   }
@@ -1107,6 +1230,7 @@ export class SiloView {
 
   private goDo(n: Npc, x: number, task: Task, after: NonNullable<Npc['after']>) {
     n.task = task;
+    if (task !== 'gather' && task !== 'shop') n.lane = 0;
     n.after = after;
     if (Math.abs(n.x - x) > 1.5) {
       n.mode = 'walk';
@@ -1164,6 +1288,7 @@ export class SiloView {
     const q = qs.reduce((a, b) => (b.list.length < a.list.length ? b : a));
     this.unclaim(n);
     n.task = 'queue';
+    n.lane = 0;
     n.after = undefined;
     q.list.push(n);
     n.mode = 'walk';
@@ -1459,11 +1584,19 @@ export class SiloView {
     // On mange : petit mouvement de cuillère.
     if (n.eating && n.mode === 'act' && n.act === 'sit') n.sp.y -= Math.floor(time * 2.2 + n.x * 0.37) % 2;
     if (n.yOff && n.mode === 'act') n.sp.y += n.yOff;
-    const k = n.child ? 0.72 : 1;
+    // Couloirs de profondeur : plus haut, plus petit, plus sombre au fond de la salle.
+    const lane = n.mode === 'stairs' ? 0 : n.lane;
+    n.sp.y -= lane * 4;
+    const k = (n.child ? 0.72 : 1) * (1 - lane * 0.08);
     n.sp.scale.set(n.facing * k, k);
+    n.sp.zIndex = n.sp.y;
+    n.shadow.visible = n.mode !== 'stairs' && !n.vanish && n.yOff === 0;
+    n.shadow.position.set(Math.round(n.x), Math.round(n.y - lane * 4));
+    n.shadow.scale.set(k);
+    n.shadow.alpha = n.fade * (0.8 - lane * 0.15);
     // Ombre & lumière : les PNJ s'assombrissent avec leur étage
     const f = s.floors[n.floor];
-    const light = 1 - Math.min(0.75, (1 - f.power) * 0.6);
+    const light = (this.lit ? 1 : 1 - Math.min(0.75, (1 - f.power) * 0.6)) * (1 - lane * 0.12);
     const v = Math.round(255 * light);
     n.sp.tint = (v << 16) | (v << 8) | v;
     n.sp.alpha = n.fade;
@@ -1506,10 +1639,15 @@ export class SiloView {
     this.fpsFrames = 0;
     if (!this.settings.adaptive) return;
     if (this.fps < 40 && this.effSecondary !== 'min') this.effSecondary = 'min';
+    else if (this.fps < 30 && this.effLighting === 'high') this.effLighting = 'medium';
+    else if (this.fps < 22 && this.effLighting === 'medium') this.effLighting = 'low';
     else if (this.fps < 34) this.effDensity = Math.max(50, Math.round(this.effDensity * 0.75));
     else if (this.fps > 56) {
       this.effDensity = Math.min(this.settings.density, this.effDensity + 20);
-      if (this.effDensity === this.settings.density) this.effSecondary = this.settings.secondary;
+      if (this.effDensity === this.settings.density) {
+        this.effSecondary = this.settings.secondary;
+        this.effLighting = this.settings.lighting;
+      }
     }
   }
 
@@ -1521,4 +1659,27 @@ export class SiloView {
   get activeNpcs() {
     return this.npcs.reduce((a, n) => a + (n.active ? 1 : 0), 0);
   }
+}
+
+/** Ombre au sol des habitants : une ellipse de pixels. */
+function shadowCanvas() {
+  const c = document.createElement('canvas');
+  c.width = 11;
+  c.height = 3;
+  const g = c.getContext('2d')!;
+  g.fillStyle = 'rgba(0,0,0,0.55)';
+  g.fillRect(2, 0, 7, 3);
+  g.fillRect(0, 1, 11, 1);
+  return c;
+}
+
+/** Lignes de balayage d'un écran cathodique (une ligne sur deux assombrie). */
+function scanlineCanvas() {
+  const c = document.createElement('canvas');
+  c.width = 1;
+  c.height = 2;
+  const g = c.getContext('2d')!;
+  g.fillStyle = 'rgba(0,0,0,0.45)';
+  g.fillRect(0, 1, 1, 1);
+  return c;
 }

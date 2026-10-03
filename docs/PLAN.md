@@ -95,17 +95,17 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 - ⬜ Stocks physiques par étage et transferts (§48–52 bis)
 - ⬜ Mesure de performance sur une vraie machine (§32)
 
-### Phase visuelle — Profondeur « 2D enrichie » (évaluation, à faire)
+### Phase visuelle — Profondeur « 2D enrichie » (A et B livrées, C et D à faire)
 Objectif : garder le pixel art mais donner du volume, à la manière des jeux en couches avec éclairage par pixel
 (référence citée : Soulbound). État actuel : chaque salle est une image plate 256×104, les PNJ marchent sur une seule
 ligne, la lumière est un voile global par étage + des halos additifs (ambiance de l'étape « ambiance »).
 
-- ⬜ **A. Gains rapides, sans nouvelle image** (≈ 1 session)
+- ✅ **A. Gains rapides, sans nouvelle image** — livrée : rendu du monde à sa résolution native dans une texture puis agrandi (pixels nets), 3 couloirs de profondeur pour les habitants (plus petits et plus sombres au fond) avec ombres au sol, carte de lumière (lampes détectées, plafonniers hors champ, lueur des écrans, torches des adjoints la nuit, cabine d'ascenseur, gyrophares rouges en panne générale), rayons de lumière (réglage Élevé), brume de profondeur, étalonnage (matin chaud, soir doré, nuit bleutée, panne désaturée, émeute rougie), écrans cathodiques (lignes de balayage, bande qui défile). Réglage Éclairage : Bas = rendu classique ; la dégradation adaptative redescend Élevé → Moyen → Bas si les FPS chutent
   - Rendu pixel-parfait : le monde dessiné dans une texture basse résolution puis agrandi par paliers entiers (les effets restent nets)
   - 2 à 3 « couloirs » de profondeur par salle : PNJ du fond plus petits/sombres, tri par profondeur, ombres au sol
   - Carte de lumière : chaque lampe déjà détectée éclaire vraiment son entourage (lumière multipliée), nuit et pannes bien plus dramatiques, lampes torches des adjoints, gyrophares de secours
   - Rayons de lumière sous les lampes, brume de profondeur (les étages profonds plus voilés), étalonnage couleur selon l'heure, le secteur et les crises, léger bloom sur les points brillants, écran des réfectoires façon tube cathodique
-- ⬜ **B. Relief par pixel** (≈ 1 session)
+- ✅ **B. Relief par pixel** — livrée : cartes de normales générées au chargement depuis chaque image de salle (versions miroir pour les ailes retournées, normales quantifiées), passe de normales et shader d'éclairage PixiJS (48 lumières, lumière quantifiée par paliers) ; relief modéré en Moyen, marqué en Élevé
   - Cartes de normales générées par script à partir des images existantes (relief estimé depuis la luminance et les contours ; aucun modèle de profondeur disponible sur Monid)
   - Shader d'éclairage PixiJS (jusqu'à ~24 lumières par étage visible) : les murs, machines et tuyaux prennent la lumière de côté ; liseré lumineux sur les PNJ
 - ⬜ **C. Salles en couches** (≈ 1–2 sessions, ≈ 3–6 $ de génération)
@@ -177,6 +177,7 @@ ligne, la lumière est un voile global par étage + des halos additifs (ambiance
 
 ## Journal des livraisons
 
+- **Phase visuelle A + B** — rendu pixel-parfait, carte de lumière et relief par pixel, couloirs de profondeur, ombres, rayons, brume, étalonnage, écrans cathodiques (aucune image générée).
 - **Étape 5** — vie quotidienne visible, patrouilles d'adjoints, confiance par institution, alertes regroupées et « À venir » (aucune image générée).
 - **Étape 4** — années, démographie, mémoire collective, bilans, 8 fins, difficulté, son procédural, déploiement GitHub Pages (aucune image générée).
 - **Ambiance** — animation du décor des salles sans nouvelle image (analyse des pixels + émetteurs placés à la main).

@@ -1,6 +1,7 @@
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { FloorView, Snapshot } from '../sim/types';
-import { AMBIENCE, detectLamps, detectLeds, inpaintPlants, isFruit, plantChunks, plantMask, type EmitterKind, type EmitterSpec, type Lamp, type Pixels } from './ambientData';
+import type { Light } from './lighting';
+import { AMBIENCE, detectLamps, detectLeds, inpaintPlants, isFruit, normalMap, plantChunks, plantMask, type EmitterKind, type EmitterSpec, type Lamp, type Pixels } from './ambientData';
 import { FEET_Y, FLOOR_H, ROOM_H, ROOM_W } from './textures';
 
 // Couche « ambiance » : lampes qui respirent, voyants qui clignotent, plantes qui poussent et ondulent,
@@ -12,6 +13,8 @@ interface Analysis {
   plants: { x0: number; x1: number; leaf: Texture; fruit?: Texture }[];
   base?: Texture;
   gaugeFace: number[];
+  normal?: Texture;
+  normalMirror?: Texture;
 }
 
 interface Wing {
@@ -19,7 +22,7 @@ interface Wing {
   wx: number;
   mirrored: boolean;
   side: number;
-  glows: { sp: Sprite; phase: number; size: number }[];
+  glows: { sp: Sprite; phase: number; size: number; x: number; y: number; ray?: Sprite }[];
   leds: { sp: Sprite; t: number; fast: boolean }[];
   plants: { leaf: Sprite; fruit?: Sprite; phase: number; k: number }[];
   gauges?: Graphics;
@@ -44,6 +47,7 @@ export interface AmbientOptions {
   secondary: 'min' | 'standard' | 'max';
   lighting: 'low' | 'medium' | 'high';
   zoom: number;
+  lit: boolean; // éclairage par pixel actif
 }
 
 const GROWTH_DAYS = 6;
@@ -74,6 +78,22 @@ function nearest(tex: Texture) {
 }
 
 /** Halo en anneaux (pas de dégradé lisse : on reste dans l'esthétique pixel). */
+/** Cône de lumière sous une lampe : dégradé par paliers (pas de flou, on reste en pixel art). */
+function rayTexture() {
+  const W = 40;
+  const H = 72;
+  const c = canvasOf(W, H);
+  const g = c.getContext('2d')!;
+  for (let y = 0; y < H; y++) {
+    const t = y / H;
+    const half = 3 + t * (W / 2 - 3);
+    const a = Math.round((1 - t) * 5) / 5 * 0.55;
+    g.fillStyle = `rgba(255,255,255,${a})`;
+    g.fillRect(Math.round(W / 2 - half), y, Math.round(half * 2), 1);
+  }
+  return nearest(Texture.from(c));
+}
+
 function glowTexture() {
   const c = canvasOf(24, 24);
   const g = c.getContext('2d')!;
@@ -109,6 +129,9 @@ export class Ambient {
   private pool: Particle[] = [];
   private glowTex = glowTexture();
   private puffTex = puffTexture();
+  private rayTex = rayTexture();
+  /** Lumières des lampes, par étage (coordonnées monde), mises à jour à chaque image. */
+  readonly lights = new Map<number, Light[]>();
 
   constructor() {
     for (let i = 0; i < 420; i++) {
@@ -129,6 +152,14 @@ export class Ambient {
     this.info.set(name, a);
     if (!p) return;
     a.lamps = detectLamps(p);
+    // Relief : cartes de normales (aile normale et aile retournée).
+    const toTex = (data: Uint8ClampedArray<ArrayBuffer>) => {
+      const c = canvasOf(p.width, p.height);
+      c.getContext('2d')!.putImageData(new ImageData(data, p.width, p.height), 0, 0);
+      return nearest(Texture.from(c));
+    };
+    a.normal = toTex(normalMap(p));
+    a.normalMirror = toTex(normalMap(p, 3.6, true));
     if (spec.leds) {
       const leds = detectLeds(p);
       const groups = [0, 1, 2].map(() => {
@@ -197,6 +228,11 @@ export class Ambient {
   }
 
   /** Image de fond à utiliser (sans les plantes, qui sont animées à part). */
+  normalTex(name: string, mirrored: boolean) {
+    const a = this.info.get(name);
+    return mirrored ? a?.normalMirror : a?.normal;
+  }
+
   base(name: string) {
     return this.info.get(name)?.base;
   }
@@ -241,8 +277,16 @@ export class Ambient {
         sp.blendMode = 'add';
         sp.tint = spec.lampTint ?? 0xffb35a;
         sp.alpha = 0;
-        over.addChild(sp);
-        wing.glows.push({ sp, phase: Math.random() * 6, size: l.size });
+        // Rayon de lumière vers le sol
+        const ray = new Sprite(this.rayTex);
+        ray.anchor.set(0.5, 0);
+        ray.position.set(Math.round(l.x), Math.round(l.y + 4));
+        ray.scale.set(0.7 + l.size * 0.35, Math.min(1.2, (ROOM_H - l.y - 6) / 72));
+        ray.blendMode = 'add';
+        ray.tint = spec.lampTint ?? 0xffb35a;
+        ray.alpha = 0;
+        over.addChild(ray, sp);
+        wing.glows.push({ sp, phase: Math.random() * 6, size: l.size, x: mirrored ? wx + ROOM_W - l.x : wx + l.x, y: l.y, ray });
       }
       if (spec.gauges) {
         wing.gauges = new Graphics();
@@ -266,6 +310,8 @@ export class Ambient {
     const rateMul = (o.secondary === 'max' ? 1 : 0.6) * (o.zoom < 0.6 ? 0.35 : 1);
     const top = index * FLOOR_H;
 
+    const lights: Light[] = [];
+    this.lights.set(index, lights);
     for (const w of wings) {
       const spec = AMBIENCE[w.name] ?? {};
       // Lampes : respiration lente, vacillement quand le courant faiblit, secours rouges en panne.
@@ -282,7 +328,15 @@ export class Ambient {
           if (flick > 0) a *= 0.15;
           else if (f.power < 0.75 && Math.sin(time * 23 + g.phase * 7) > 0.97) a *= 0.3;
         }
-        g.sp.alpha = Math.max(0, a * lightMul);
+        g.sp.alpha = Math.max(0, a * lightMul) * (o.lit ? 0.7 : 1);
+        if (g.ray) g.ray.alpha = o.lit && o.lighting === 'high' ? Math.max(0, a) * 0.35 * (1 + 0.15 * Math.sin(time * 0.7 + g.phase)) : 0;
+        // Chaque lampe éclaire réellement son entourage (carte de lumière).
+        if (o.lit) lights.push({ x: g.x, y: top + g.y + 2, r: 60 + g.size * 40, i: Math.max(0, a) * 4.6, color: blackout ? 0xff3a28 : spec.lampTint ?? 0xffc27a, h: 12 });
+      }
+      // Salle sans lampe visible (machines, mines…) : plafonniers hors champ.
+      if (o.lit && !w.glows.length && !blackout && f.power >= 0.2) {
+        const on = (0.35 + 0.65 * f.power) * (night && f.sector === 'residential' ? 0.4 : 1);
+        for (const lx of [64, 192]) lights.push({ x: w.wx + lx, y: top + 6, r: 110, i: 1.1 * on, color: 0xf2e6d0, h: 14 });
       }
       // Voyants : groupes qui s'éteignent et se rallument, frénétiques dans les serveurs.
       for (const l of w.leds) {
@@ -329,7 +383,8 @@ export class Ambient {
           const v = failed ? 0 : [load, s.energy.battery / 100, load * 0.9, f.condition / 100, load * 1.1][k % 5];
           const ang = -Math.PI + 0.45 + Math.min(1.25, Math.max(0, v)) * ((Math.PI - 0.9) / 1.25) + (failed ? 0 : Math.sin(time * 6 + k) * 0.04);
           g.circle(gz.x, gz.y, 5).fill(face);
-          g.moveTo(gz.x, gz.y).lineTo(gz.x + Math.cos(ang) * 5, gz.y + Math.sin(ang) * 5).stroke({ color: v > 1 ? 0xd9302a : 0x2a2a2a, width: 1 });
+          // Aiguille dessinée pixel par pixel (nette au rendu natif).
+          for (let t = 1; t <= 5; t++) g.rect(Math.round(gz.x + Math.cos(ang) * t), Math.round(gz.y + Math.sin(ang) * t), 1, 1).fill(v > 1 ? 0xd9302a : 0x2a2a2a);
           g.rect(gz.x - 0.5, gz.y - 0.5, 1, 1).fill(0x1a1a1a);
         });
       }

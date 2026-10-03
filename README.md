@@ -58,6 +58,7 @@ src/
     textures.ts        Cage d'escalier, dalles, murs, roche
     ambient.ts         Ambiance des salles : lampes, voyants, plantes, vapeur, fumée, gouttes
     hotspots.ts        Points d'intérêt des salles (bancs, comptoirs, portes, lits, étals…)
+    lighting.ts        Rendu natif + carte de lumière + relief par pixel (shader, cartes de normales)
   audio/sound.ts       Son procédural Web Audio (génératrice, ventilation, foule, alarmes)
   ui/                  React + Zustand (HUD, décisions, panneaux)
   game/store.ts        Pont Worker ⇄ UI (commandes, requêtes, snapshot)

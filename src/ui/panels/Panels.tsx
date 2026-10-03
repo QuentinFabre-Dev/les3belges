@@ -388,6 +388,7 @@ export function SettingsPanel() {
           ))}
         </div>
       </label>
+      <p className="small muted">Bas : rendu classique. Moyen : éclairage par pixel (les lampes éclairent vraiment, nuit et pannes plus sombres, relief léger). Élevé : relief marqué et rayons de lumière.</p>
       <label className="field row gap">
         <input type="checkbox" checked={settings.adaptive} onChange={(e) => set({ adaptive: e.target.checked })} />
         <span>Dégradation adaptative (réduit les effets puis la densité si les FPS chutent)</span>

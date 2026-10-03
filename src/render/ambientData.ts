@@ -273,3 +273,53 @@ export function inpaintPlants(p: Pixels, top: number, bottom: number, m = plantM
     }
   return out;
 }
+
+/**
+ * Carte de normales estimée depuis l'image (aucun modèle de profondeur) :
+ * hauteur ≈ luminance lissée (les reflets sont en relief, les contours sombres en creux),
+ * pente par Sobel, normales quantifiées pour garder un rendu pixel art.
+ * `mirror` produit la version d'une aile retournée (x inversé, nx opposé).
+ */
+export function normalMap(p: Pixels, strength = 3.6, mirror = false): Uint8ClampedArray<ArrayBuffer> {
+  const { width: W, height: H } = p;
+  const lum = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) lum[i] = (p.data[i * 4] * 0.3 + p.data[i * 4 + 1] * 0.59 + p.data[i * 4 + 2] * 0.11) / 255;
+  // Lissage 3×3 : un relief doux plutôt qu'un bruit de pixels.
+  const hgt = new Float32Array(W * H);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      let s = 0;
+      let n = 0;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx;
+          const yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+          s += lum[yy * W + xx] * (dx === 0 && dy === 0 ? 2 : 1);
+          n += dx === 0 && dy === 0 ? 2 : 1;
+        }
+      hgt[y * W + x] = s / n;
+    }
+  const at = (x: number, y: number) => hgt[Math.min(H - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x))];
+  const q = (v: number) => Math.round(v * 4) / 4; // 9 niveaux par axe
+  const out = new Uint8ClampedArray(W * H * 4);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const gx = at(x + 1, y - 1) + 2 * at(x + 1, y) + at(x + 1, y + 1) - at(x - 1, y - 1) - 2 * at(x - 1, y) - at(x - 1, y + 1);
+      const gy = at(x - 1, y + 1) + 2 * at(x, y + 1) + at(x + 1, y + 1) - at(x - 1, y - 1) - 2 * at(x, y - 1) - at(x + 1, y - 1);
+      let nx = -gx * strength;
+      let ny = -gy * strength;
+      let nz = 1;
+      const len = Math.hypot(nx, ny, nz);
+      nx = q(nx / len);
+      ny = q(ny / len);
+      nz = Math.sqrt(Math.max(0.05, 1 - nx * nx - ny * ny));
+      const ox = mirror ? W - 1 - x : x;
+      const i = (y * W + ox) * 4;
+      out[i] = ((mirror ? -nx : nx) * 0.5 + 0.5) * 255;
+      out[i + 1] = (ny * 0.5 + 0.5) * 255;
+      out[i + 2] = (nz * 0.5 + 0.5) * 255;
+      out[i + 3] = 255;
+    }
+  return out;
+}
