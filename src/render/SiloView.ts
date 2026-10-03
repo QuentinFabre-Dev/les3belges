@@ -36,6 +36,10 @@ export interface RenderSettings {
 
 const SURFACE_H = 300;
 const ROOM_TEXTURES = ['court', 'council', 'school', 'bazaar', 'quarters', 'laundry', 'greenhouse', 'admin', 'servers', 'security', 'canteen', 'residential', 'hydroponics', 'medical', 'workshop', 'water', 'generator', 'depot', 'mine', 'cafe_main', 'cafe_mid', 'cafe_main_screen', 'cafe_mid_screen'];
+// Prototype « profondeur du silo » (étape D) : étages qui ont une vue en profondeur de la cage
+// d'escalier et un premier plan (conduites, câbles) devant les habitants.
+const DEPTH_FLOORS: Record<string, { shaft?: string; fg?: string }> = { cafeteria: { shaft: 'shaft_depth', fg: 'fg_cafeteria' } };
+const DEPTH_ASSETS = ['rock_strata', 'shaft_depth', 'fg_cafeteria'];
 const WORK_FLOORS_24H = new Set<SectorId>(['water', 'energy', 'medical', 'security']);
 
 type Mode = 'idle' | 'walk' | 'act' | 'stairs';
@@ -121,6 +125,12 @@ export class SiloView {
   private screens: { floor: number; feed: TilingSprite; grime: Sprite; noise: Sprite; base: number; roll: Sprite; top: number; h: number; cx: number; cy: number }[] = [];
   private elevator = new Graphics();
   private shadowLayer = new Container();
+  private fgLayer = new Container();
+  private depthTex: Record<string, Texture> = {};
+  private rock?: TilingSprite;
+  private shaftViews: { floor: number; sp: Sprite; cx: number; cy: number }[] = [];
+  private foregrounds: { floor: number; sp: Sprite }[] = [];
+  private dust: { sp: Sprite; vx: number; y0: number; ph: number }[] = [];
   private shadowTex!: Texture;
   private lighting!: Lighting;
   private normalRoots: Container[] = [];
@@ -192,6 +202,11 @@ export class SiloView {
     const base = import.meta.env.BASE_URL;
     const urls = [...ROOM_TEXTURES.map((t) => `${base}assets/rooms/${t}.png`), `${base}assets/surface.png`];
     await Assets.load(urls);
+    // Couches de profondeur (facultatives : le silo s'en passe si elles manquent).
+    const depth = await Promise.allSettled(DEPTH_ASSETS.map((n) => Assets.load(`${base}assets/depth/${n}.png`)));
+    depth.forEach((r, i) => {
+      if (r.status === 'fulfilled') this.depthTex[DEPTH_ASSETS[i]] = r.value as Texture;
+    });
     for (const t of ROOM_TEXTURES) this.ambient.analyze(t, Texture.from(`${base}assets/rooms/${t}.png`));
 
     // Atlas des habitants
@@ -207,7 +222,7 @@ export class SiloView {
 
     this.shadowTex = Texture.from(shadowCanvas());
     this.npcLayer.sortableChildren = true;
-    this.world.addChild(this.bg, this.floorLayer, this.shadowLayer, this.npcLayer, this.ambient.layer, this.fxLayer);
+    this.world.addChild(this.bg, this.floorLayer, this.shadowLayer, this.npcLayer, this.ambient.layer, this.fgLayer, this.fxLayer);
     this.lighting = new Lighting(this.app.renderer as Renderer);
     this.app.stage.addChild(this.world, this.lighting.display, this.lighting.lightSprite, this.ui);
     this.app.stage.eventMode = 'static';
@@ -221,9 +236,11 @@ export class SiloView {
 
   private build(floors: FloorView[]) {
     const totalH = floors.length * FLOOR_H;
-    const rock = new TilingSprite({ texture: Texture.from(rockCanvas()), width: SILO_W + 2400, height: totalH + 400 });
+    const strata = this.depthTex.rock_strata;
+    const rock = new TilingSprite({ texture: strata ?? Texture.from(rockCanvas()), width: SILO_W + 2400, height: totalH + 400 });
     rock.position.set(-1200, -10);
-    rock.tint = 0xb0a8a0;
+    rock.tint = strata ? 0x8c8680 : 0xb0a8a0;
+    this.rock = rock;
     this.bg.addChild(rock);
 
     const surface = new Sprite(Texture.from(`${import.meta.env.BASE_URL}assets/surface.png`));
@@ -231,6 +248,18 @@ export class SiloView {
     surface.position.set(SILO_W / 2, 6);
     surface.scale.set(SURFACE_H / surface.texture.height);
     this.bg.addChild(surface);
+    // Cendres qui dérivent au-dessus de la surface, sur trois plans (taille, vitesse, opacité).
+    for (let i = 0; i < 70; i++) {
+      const sp = new Sprite(Texture.WHITE);
+      const plane = i % 3;
+      sp.width = sp.height = plane === 2 ? 2 : 1;
+      sp.tint = [0x8a7a70, 0xa89888, 0xc8b8a8][plane];
+      sp.alpha = [0.35, 0.5, 0.7][plane];
+      const y0 = -SURFACE_H + 20 + Math.random() * (SURFACE_H - 40);
+      sp.position.set(-500 + Math.random() * (SILO_W + 1000), y0);
+      this.bg.addChild(sp);
+      this.dust.push({ sp, vx: [4, 9, 16][plane] * (0.7 + Math.random() * 0.6), y0, ph: Math.random() * 6 });
+    }
     // Le sol coupe la surface du silo
     const soil = new Graphics().rect(-1200, -4, SILO_W + 2400, 12).fill(0x2a221c).rect(-1200, -4, SILO_W + 2400, 2).fill(0x4a3a2c);
     this.bg.addChild(soil);
@@ -255,7 +284,9 @@ export class SiloView {
         right.scale.x = -1;
         right.x += ROOM_W;
       }
-      const shaft = new Sprite(f.index % 2 ? shaftB : shaftA);
+      const depthDef = DEPTH_FLOORS[f.id];
+      const depthTex = depthDef?.shaft ? this.depthTex[depthDef.shaft] : undefined;
+      const shaft = new Sprite(depthTex ? Texture.from(shaftCanvas(f.index % 2 === 1, true)) : f.index % 2 ? shaftB : shaftA);
       shaft.x = SHAFT_X;
       const slabL = new Sprite(slab);
       slabL.y = ROOM_H;
@@ -280,6 +311,28 @@ export class SiloView {
       const highlight = new Graphics().rect(-2, -2, SILO_W + 4, ROOM_H + 4).stroke({ color: 0xe8a33c, width: 2, alpha: 0.9 });
       highlight.visible = false;
       root.addChild(left, right, shaft, slabL, slabR, wl, wr);
+      if (depthTex) {
+        // Vue plongeante dans la cage : une image plus grande que l'ouverture, décalée avec la caméra.
+        const holder = new Container();
+        holder.x = SHAFT_X;
+        const mask = new Graphics().rect(0, 0, SHAFT_W, FLOOR_H).fill(0xffffff);
+        const sp = new Sprite(depthTex);
+        sp.anchor.set(0.5);
+        sp.position.set(SHAFT_W / 2, FLOOR_H / 2);
+        holder.addChild(sp, mask);
+        holder.mask = mask;
+        root.addChildAt(holder, root.getChildIndex(shaft));
+        this.shaftViews.push({ floor: f.index, sp, cx: SHAFT_W / 2, cy: FLOOR_H / 2 });
+      }
+      const fgTex = depthDef?.fg ? this.depthTex[depthDef.fg] : undefined;
+      if (fgTex) {
+        // Premier plan : conduites et câbles devant les habitants.
+        const sp = new Sprite(fgTex);
+        sp.position.set(0, f.index * FLOOR_H);
+        sp.tint = 0x6e6c74; // plus proche de la caméra : en silhouette
+        this.fgLayer.addChild(sp);
+        this.foregrounds.push({ floor: f.index, sp });
+      }
       // Ambiance animée (plantes, voyants, cadrans sous l'ombre ; halos des lampes au-dessus).
       const ambL = this.ambient.buildWing(f.index, f.left, 0, false);
       const ambR = this.ambient.buildWing(f.index, f.right, SHAFT_X + SHAFT_W, f.left === f.right);
@@ -673,6 +726,7 @@ export class SiloView {
       this.world.scale.set(this.zoom);
       this.world.position.set(this.ox, this.oy);
     }
+    this.updateDepth(dt, W, H);
     const ambientBands: [number, number, number][] = [[-SURFACE_H - 200, 0, 1]];
     const lights: Light[] = [];
 
@@ -777,6 +831,27 @@ export class SiloView {
     this.updateFollow(dt * mul);
     this.adaptive(dt);
     if (this.lit) this.composeLighting(W, H, s, lights, ambientBands, time, dt);
+  }
+
+  /** Parallaxe : roche lointaine plus lente, vue plongeante dans la cage, premier plan plus rapide. */
+  private updateDepth(dt: number, W: number, H: number) {
+    const cx = this.camX;
+    const cy = this.camY + H / 2 / this.zoom;
+    if (this.rock) this.rock.tilePosition.set(Math.round(cx * 0.35), Math.round(cy * 0.35));
+    for (const v of this.shaftViews) {
+      const fy = v.floor * FLOOR_H + FLOOR_H / 2;
+      v.sp.position.set(Math.round(v.cx + Math.max(-10, Math.min(10, (cx - LANDING_X) * 0.05))), Math.round(v.cy + Math.max(-18, Math.min(18, (cy - fy) * 0.18))));
+    }
+    for (const f of this.foregrounds) {
+      const fy = f.floor * FLOOR_H + FLOOR_H / 2;
+      f.sp.position.set(Math.round(-(cx - SILO_W / 2) * 0.04), Math.round(f.floor * FLOOR_H - (cy - fy) * 0.06));
+    }
+    for (const d of this.dust) {
+      d.sp.x += d.vx * dt;
+      d.sp.y = d.y0 + Math.sin(performance.now() / 1000 * 0.6 + d.ph) * 3;
+      if (d.sp.x > SILO_W + 520) d.sp.x = -520;
+    }
+    void W;
   }
 
   /** Rend le monde à sa résolution native, calcule la lumière et compose l'image finale. */

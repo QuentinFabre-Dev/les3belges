@@ -95,7 +95,7 @@ Sur 120 jours, le joueur automatique perd la moitié de ses parties : la légiti
 - ⬜ Stocks physiques par étage et transferts (§48–52 bis)
 - ⬜ Mesure de performance sur une vraie machine (§32)
 
-### Phase visuelle — Profondeur « 2D enrichie » (A et B livrées, C et D à faire)
+### Phase visuelle — Profondeur « 2D enrichie » (A et B livrées, D en prototype, C à faire)
 Objectif : garder le pixel art mais donner du volume, à la manière des jeux en couches avec éclairage par pixel
 (référence citée : Soulbound). État actuel : chaque salle est une image plate 256×104, les PNJ marchent sur une seule
 ligne, la lumière est un voile global par étage + des halos additifs (ambiance de l'étape « ambiance »).
@@ -112,7 +112,8 @@ ligne, la lumière est un voile global par étage + des halos additifs (ambiance
   - Chaque salle découpée en fond / mobilier / premier plan (piliers, rambardes, tuyaux) : les PNJ passent derrière le premier plan
   - Pipeline : version « salle vide » par édition d'image (Wan ou GPT-image avec l'image actuelle en référence), mobilier isolé par différence, éléments de premier plan générés sur fond uni puis détourés (Topaz, ≈ 0,10 $/image)
   - Parallaxe légère entre couches quand la caméra bouge
-- ⬜ **D. Profondeur du silo lui-même** (≈ 1 session, ≈ 1 $)
+- 🟡 **D. Profondeur du silo lui-même** — prototype sur l'étage -01 (3 images, 0,09 $) : vue plongeante dans la cage d'escalier (anneaux qui s'enfoncent, parallaxe avec la caméra, escalier procédural par-dessus), conduites et câbles au premier plan en silhouette, strates de roche en parallaxe derrière tout le fût, cendres qui dérivent au-dessus de la surface sur trois plans. Généralisation : la vue plongeante peut être réutilisée sur tous les étages (variantes par retournement/teinte), 3–4 premiers plans de plus suffiraient (≈ 0,15 $)
+- ⬜ **D (suite, plan initial)** (≈ 1 session, ≈ 1 $)
   - Strates de roche en parallaxe derrière le fût, cage d'escalier dessinée en perspective, câbles et conduites verticales au premier plan, surface et ciel en plusieurs plans
 - Risques : cohérence entre couches générées par IA (retouches à prévoir), relief « gaufré » si les normales sont trop fortes, coût GPU sur machines modestes (tout passera par le réglage « Éclairage » : bas = rendu actuel)
 - Ordre conseillé : A → B → C → D, avec un prototype sur une seule salle (le grand réfectoire) avant de généraliser
@@ -177,6 +178,7 @@ ligne, la lumière est un voile global par étage + des halos additifs (ambiance
 
 ## Journal des livraisons
 
+- **Phase visuelle D (prototype -01)** — vue plongeante dans la cage, premier plan, roche en parallaxe, cendres en surface (3 images générées, 0,09 $).
 - **Rythme du temps** — vitesses en minutes de jeu par seconde : ×1 (une minute par seconde, une heure par minute réelle), ×5, ×30, ×120 ; l'horloge avance minute par minute entre deux ticks de simulation (10 min).
 - **Phase visuelle A + B** — rendu pixel-parfait, carte de lumière et relief par pixel, couloirs de profondeur, ombres, rayons, brume, étalonnage, écrans cathodiques (aucune image générée).
 - **Étape 5** — vie quotidienne visible, patrouilles d'adjoints, confiance par institution, alertes regroupées et « À venir » (aucune image générée).

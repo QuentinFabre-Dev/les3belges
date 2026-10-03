@@ -26,10 +26,13 @@ function hash(x: number, y: number) {
 }
 
 // Cage d'escalier : un segment d'escalier en colimaçon par étage (sens alterné).
-export function shaftCanvas(flip: boolean) {
+/** `bare` : sans fond ni parois, pour poser l'escalier devant une vue en profondeur. */
+export function shaftCanvas(flip: boolean, bare = false) {
   const { c, ctx } = canvas(SHAFT_W, FLOOR_H);
-  ctx.fillStyle = '#121519';
-  ctx.fillRect(0, 0, SHAFT_W, FLOOR_H);
+  if (!bare) {
+    ctx.fillStyle = '#121519';
+    ctx.fillRect(0, 0, SHAFT_W, FLOOR_H);
+  }
   // parois
   for (let y = 0; y < FLOOR_H; y += 2) {
     ctx.fillStyle = hash(1, y) > 0.5 ? '#1a1e23' : '#171a1f';

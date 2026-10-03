@@ -38,3 +38,9 @@ node "$(dirname "$0")/screen-mask.mjs" "$OUT/rooms/cafe_mid.png" "$OUT/rooms/caf
 for n in court council school bazaar quarters laundry greenhouse; do
   [ -f "$SRC/$n.png" ] && convert "$SRC/$n.png" -crop 1888x768+80+44 +repage -filter Box -resize 256x104\! -dither None -colors 64 "$OUT/rooms/$n.png"
 done
+
+# Profondeur du silo (prototype étage -01) : vue plongeante dans la cage, strates de roche, premier plan détouré (fond magenta)
+mkdir -p "$OUT/depth"
+[ -f "$SRC/shaft_depth.png" ] && convert "$SRC/shaft_depth.png" -filter Box -resize 92x145\! -dither None -colors 48 "$OUT/depth/shaft_depth.png"
+[ -f "$SRC/rock_strata.png" ] && convert "$SRC/rock_strata.png" -filter Box -resize 256x256\! -dither None -colors 32 "$OUT/depth/rock_strata.png"
+[ -f "$SRC/fg_cafeteria.png" ] && convert "$SRC/fg_cafeteria.png" -filter point -resize 584x114\! -fuzz 28% -transparent '#FF00FF' -channel A -threshold 50% +channel "$OUT/depth/fg_cafeteria.png"
