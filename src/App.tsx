@@ -86,7 +86,7 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (useGame.getState().phase === 'intro') return;
       if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT') return;
-      const speeds: Record<string, Speed> = { ' ': 0, '1': 1, '2': 2, '3': 5, '4': 10 };
+      const speeds: Record<string, Speed> = { ' ': 0, '1': 1, '2': 5, '3': 30, '4': 120 };
       if (e.key in speeds) {
         e.preventDefault();
         const cur = useGame.getState().snapshot?.speed ?? 1;

@@ -177,6 +177,7 @@ ligne, la lumière est un voile global par étage + des halos additifs (ambiance
 
 ## Journal des livraisons
 
+- **Rythme du temps** — vitesses en minutes de jeu par seconde : ×1 (une minute par seconde, une heure par minute réelle), ×5, ×30, ×120 ; l'horloge avance minute par minute entre deux ticks de simulation (10 min).
 - **Phase visuelle A + B** — rendu pixel-parfait, carte de lumière et relief par pixel, couloirs de profondeur, ombres, rayons, brume, étalonnage, écrans cathodiques (aucune image générée).
 - **Étape 5** — vie quotidienne visible, patrouilles d'adjoints, confiance par institution, alertes regroupées et « À venir » (aucune image générée).
 - **Étape 4** — années, démographie, mémoire collective, bilans, 8 fins, difficulté, son procédural, déploiement GitHub Pages (aucune image générée).

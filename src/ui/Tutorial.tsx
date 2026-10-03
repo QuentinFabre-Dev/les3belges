@@ -47,7 +47,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'Le temps',
-    text: 'Pause, ×1, ×2, ×5, ×10. Raccourcis : Espace pour la pause, 1 à 4 pour les vitesses. Le silo continue de vivre quand vous ne faites rien.',
+    text: 'Pause, ×1 (une minute par seconde), ×5, ×30, ×120. Raccourcis : Espace pour la pause, 1 à 4 pour les vitesses. Le silo continue de vivre quand vous ne faites rien.',
     target: '[data-tut=speeds]',
     place: 'bottom',
   },

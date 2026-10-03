@@ -16,10 +16,10 @@ export function TopBar() {
   const night = s.hour >= 22 || s.hour < 6;
   const speeds: [Speed, string, string][] = [
     [0, 'pause', 'Pause'],
-    [1, 'play', 'Vitesse ×1'],
-    [2, 'ff', 'Vitesse ×2'],
-    [5, 'fff', 'Vitesse ×5'],
-    [10, 'fff', 'Vitesse ×10'],
+    [1, 'play', 'Vitesse ×1 : une minute par seconde'],
+    [5, 'ff', 'Vitesse ×5 : une heure en 12 secondes'],
+    [30, 'fff', 'Vitesse ×30 : une journée en 48 secondes'],
+    [120, 'fff', 'Vitesse ×120 : une journée en 12 secondes'],
   ];
   return (
     <header className="topbar">

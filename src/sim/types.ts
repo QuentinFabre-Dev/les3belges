@@ -573,7 +573,8 @@ export interface EventDefinition {
 // ---------------------------------------------------------------------------
 // Protocole Worker <-> main thread
 
-export type Speed = 0 | 1 | 2 | 5 | 10;
+/** Vitesse = minutes de jeu par seconde réelle (×1 : une minute par seconde, une heure par minute). */
+export type Speed = 0 | 1 | 5 | 30 | 120;
 
 export type GameCommand =
   | { type: 'SET_SPEED'; speed: Speed }
